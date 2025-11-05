@@ -394,13 +394,7 @@ function selectImageTool(tool) {
     }
     
     // Clear preview container when switching tools
-    const previewContainer = document.getElementById('image-preview-container');
-    previewContainer.innerHTML = `
-        <div class="text-center text-gray-500 dark:text-gray-400">
-            <i class="fas fa-image text-4xl mb-2"></i>
-            <p>No image selected</p>
-        </div>
-    `;
+    document.getElementById('image-preview-container').innerHTML = '';
     
     // Show the appropriate control panel for the selected tool
     const controlPanel = document.getElementById(`${tool}-controls`);
@@ -415,26 +409,24 @@ function selectImageTool(tool) {
         mergedImageData = null;
         
         // Update upload prompt
-        document.getElementById('upload-prompt').innerHTML = `
-            Select Multiple Images to Merge
-            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
-        `;
+        document.getElementById('upload-prompt').innerHTML =
+            '<p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Select Multiple Images to Merge</p>' +
+            '<p class="text-sm text-gray-500 dark:text-gray-400">Choose 2 or more images to combine into one</p>';
         
         // Show merge controls panel immediately
         showMergeControls();
     } else {
         // Reset upload prompt for other tools
-        // THIS IS THE CORRECTED PART
-        document.getElementById('upload-prompt').innerHTML = 'Select an Image to ' + tool + '<p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>';
+        // **THIS IS THE CORRECTED PART**
+        document.getElementById('upload-prompt').innerHTML =
+            '<p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Select an Image</p>' +
+            '<p class="text-sm text-gray-500 dark:text-gray-400">Choose an image to ' + tool + '</p>';
     }
     
     // Show/hide relevant buttons
     if (currentImageData) {
         document.getElementById('reset-image').classList.remove('hidden');
         document.getElementById('compare-toggle').classList.remove('hidden');
-    } else {
-        document.getElementById('reset-image').classList.add('hidden');
-        document.getElementById('compare-toggle').classList.add('hidden');
     }
 }
 
@@ -1806,24 +1798,14 @@ function initializeBatchTool() {
         
         const operation = document.getElementById('batch-operation').value;
         
-        // In a real implementation, you would apply the selected operation here
-        // For this demo, we'll just simulate processing
-        let processedCount = 0;
-        const totalImages = batchImages.length;
-        updateProgressBar(0);
+        // This is a placeholder for a real implementation.
+        // In a real app, you would loop through `batchImages` and apply the `operation`.
+        showNotification(`Simulating batch '${operation}' on ${batchImages.length} images...`, 'info');
         
-        batchImages.forEach((imageData, index) => {
-            setTimeout(() => {
-                processedCount++;
-                const progress = Math.round((processedCount / totalImages) * 100);
-                updateProgressBar(progress);
-                
-                if (processedCount === totalImages) {
-                    showNotification(`Batch ${operation} completed for ${totalImages} images`, 'success');
-                    setTimeout(() => updateProgressBar(0), 500);
-                }
-            }, index * 100); // Process each image with a small delay
-        });
+        // You could add a progress bar here.
+        setTimeout(() => {
+            showNotification(`Batch process completed!`, 'success');
+        }, 2000); // Simulate a delay
     });
 }
 
@@ -1898,7 +1880,7 @@ function updateStorageInfo() {
     // Check localStorage
     for (let key in localStorage) {
         if (localStorage.hasOwnProperty(key)) {
-            totalSize += (localStorage[key].length * 2); // Multiply by 2 for UTF-16 characters
+            totalSize += localStorage[key].length * 2; // JavaScript strings are UTF-16
         }
     }
     
