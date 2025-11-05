@@ -90,6 +90,19 @@
             <!-- Notepad Tab -->
             <div id="notepad-tab" class="tab-panel">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <!-- Note Management UI -->
+                    <div id="note-management" class="mb-4 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <label for="note-selector" class="font-medium">Current Note:</label>
+                        <select id="note-selector" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700"></select>
+                        <button id="new-note-btn" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-plus mr-2"></i>New
+                        </button>
+                        <button id="delete-note-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+
+                    <!-- Editor Toolbar -->
                     <div class="mb-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
                         <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="bold" title="Bold">
                             <i class="fas fa-bold"></i>
@@ -197,7 +210,7 @@
                                 <i class="fas fa-code mr-2"></i>Export HTML
                             </button>
                             <button id="save-local" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-                                <i class="fas fa-save mr-2"></i>Save Locally
+                                <i class="fas fa-save mr-2"></i>Save All Notes
                             </button>
                             <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
                                 <i class="fas fa-download mr-2"></i>Download
