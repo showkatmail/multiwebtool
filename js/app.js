@@ -1,4 +1,3 @@
-```javascript
 // Global variables
 let currentImageData = null;
 let originalImageData = null;
@@ -395,7 +394,13 @@ function selectImageTool(tool) {
     }
     
     // Clear preview container when switching tools
-    document.getElementById('image-preview-container').innerHTML = '';
+    const previewContainer = document.getElementById('image-preview-container');
+    previewContainer.innerHTML = `
+        <div class="text-center text-gray-500 dark:text-gray-400">
+            <i class="fas fa-image text-4xl mb-2"></i>
+            <p>No image selected</p>
+        </div>
+    `;
     
     // Show the appropriate control panel for the selected tool
     const controlPanel = document.getElementById(`${tool}-controls`);
@@ -411,24 +416,25 @@ function selectImageTool(tool) {
         
         // Update upload prompt
         document.getElementById('upload-prompt').innerHTML = `
-            <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Select Multiple Images to Merge</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Choose 2 or more images to combine into one</p>
+            Select Multiple Images to Merge
+            <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
         `;
         
         // Show merge controls panel immediately
         showMergeControls();
     } else {
         // Reset upload prompt for other tools
-        document.getElementById('upload-prompt').innerHTML = `
-            <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Select an Image</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Choose an image to ${tool}</p>
-        `;
+        // THIS IS THE CORRECTED PART
+        document.getElementById('upload-prompt').innerHTML = 'Select an Image to ' + tool + '<p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>';
     }
     
     // Show/hide relevant buttons
     if (currentImageData) {
         document.getElementById('reset-image').classList.remove('hidden');
         document.getElementById('compare-toggle').classList.remove('hidden');
+    } else {
+        document.getElementById('reset-image').classList.add('hidden');
+        document.getElementById('compare-toggle').classList.add('hidden');
     }
 }
 
@@ -1800,30 +1806,23 @@ function initializeBatchTool() {
         
         const operation = document.getElementById('batch-operation').value;
         
-        // Show progress
-        document.getElementById('batch-progress').classList.remove('hidden');
-        
-        // Process each image
+        // In a real implementation, you would apply the selected operation here
+        // For this demo, we'll just simulate processing
         let processedCount = 0;
+        const totalImages = batchImages.length;
+        updateProgressBar(0);
         
         batchImages.forEach((imageData, index) => {
             setTimeout(() => {
-                // In a real implementation, you would apply the selected operation
-                // For this demo, we'll just simulate processing
                 processedCount++;
+                const progress = Math.round((processedCount / totalImages) * 100);
+                updateProgressBar(progress);
                 
-                // Update progress
-                const progress = Math.round((processedCount / batchImages.length) * 100);
-                document.getElementById('batch-progress-bar').style.width = `${progress}%`;
-                document.getElementById('batch-progress-text').textContent = `${progress}%`;
-                
-                if (processedCount === batchImages.length) {
-                    setTimeout(() => {
-                        document.getElementById('batch-progress').classList.add('hidden');
-                        showNotification(`Batch ${operation} completed for ${batchImages.length} images`, 'success');
-                    }, 500);
+                if (processedCount === totalImages) {
+                    showNotification(`Batch ${operation} completed for ${totalImages} images`, 'success');
+                    setTimeout(() => updateProgressBar(0), 500);
                 }
-            }, index * 500); // Process each image with a delay
+            }, index * 100); // Process each image with a small delay
         });
     });
 }
@@ -1899,7 +1898,7 @@ function updateStorageInfo() {
     // Check localStorage
     for (let key in localStorage) {
         if (localStorage.hasOwnProperty(key)) {
-            totalSize += localStorage[key].length;
+            totalSize += (localStorage[key].length * 2); // Multiply by 2 for UTF-16 characters
         }
     }
     
@@ -1959,7 +1958,9 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.classList.add('translate-x-full');
         setTimeout(() => {
-            container.removeChild(notification);
+            if (container.contains(notification)) {
+                container.removeChild(notification);
+            }
         }, 300);
     }, 3000);
 }
@@ -1975,4 +1976,3 @@ function loadSavedContent() {
 // Help modal
 document.getElementById('help-toggle').addEventListener('click', toggleHelpModal);
 document.getElementById('close-help').addEventListener('click', toggleHelpModal);
-```
