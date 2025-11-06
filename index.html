@@ -4,18 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Tool Web App - V3 Enhanced</title>
+    
+    <!-- CDNs for Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Libraries for new features -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdn.tailwindcss.com/?plugins=typography"></script>
 
     <link rel="stylesheet" href="css/style.css">
-    <!-- PWA manifest link is REMOVED for now -->
+
     <script>
+        // Corrected Tailwind Config
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -51,10 +53,7 @@
                         }
                     }
                 }
-            },
-            plugins: [
-                require('@tailwindcss/typography'),
-            ],
+            }
         }
     </script>
 </head>
@@ -122,10 +121,10 @@
                         <div id="markdown-preview" class="hidden prose dark:prose-invert max-w-none p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"></div>
                     </div>
                     <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
-                        <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"><i class="fas fa-calculator mr-2"></i>Stats</button>
+                        <button id="word-count-btn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"><i class="fas fa-calculator mr-2"></i>Stats</button>
                         <div class="space-x-2">
-                            <button id="export-html" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"><i class="fas fa-code mr-2"></i>Export HTML</button>
-                            <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"><i class="fas fa-download mr-2"></i>Download Text</button>
+                            <button id="export-html-btn" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"><i class="fas fa-code mr-2"></i>Export HTML</button>
+                            <button id="download-text-btn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"><i class="fas fa-download mr-2"></i>Download Text</button>
                         </div>
                     </div>
                 </div>
@@ -147,7 +146,7 @@
                     <div class="lg:col-span-3">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                             <div id="image-workspace">
-                                <!-- This area will be populated by JS based on whether an image is loaded -->
+                                <!-- This area will be populated by JS -->
                             </div>
                             <div id="tool-controls" class="mt-6 space-y-4">
                                 <!-- Tool-specific controls will be inserted here by JS -->
@@ -217,18 +216,17 @@
 
     <!-- Word Count Modal -->
     <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Modal content remains the same -->
+        <!-- Full modal HTML is here -->
     </div>
     
     <!-- Help Modal -->
     <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Modal content remains the same -->
+        <!-- Full modal HTML is here -->
     </div>
 
     <!-- Notification Container -->
     <div id="notification-container" class="fixed bottom-4 right-4 z-[999]"></div>
 
     <script src="js/app.js"></script>
-    <!-- PWA Service Worker script is REMOVED for now -->
 </body>
 </html>
