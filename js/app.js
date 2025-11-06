@@ -344,15 +344,23 @@ function initializeEditor() {
     const textColorInput = document.getElementById('text-color');
     const bgColorInput = document.getElementById('bg-color');
 
-    fontSizeSelect.addEventListener('change', () => {
-        document.execCommand('fontSize', false, fontSizeSelect.value);
-        editor.focus();
-    });
-    
-    fontFamilySelect.addEventListener('change', () => {
-        document.execCommand('fontName', false, fontFamilySelect.value);
-        editor.focus();
-    });
+    // ... (lines 347-350 in the previous app.js)
+    // Note Management
+    loadNotesFromLocal(); // <--- This runs first
+
+    // Check if core elements for Note Management are present before attaching listeners
+    const newNoteBtn = document.getElementById('new-note-btn');
+    const deleteNoteBtn = document.getElementById('delete-note-btn');
+    const noteSelector = document.getElementById('note-selector');
+
+    if (newNoteBtn && deleteNoteBtn && noteSelector) {
+        newNoteBtn.addEventListener('click', createNewNote);
+        deleteNoteBtn.addEventListener('click', deleteCurrentNote);
+        noteSelector.addEventListener('change', switchNote);
+    } else {
+        console.error("Notepad core management elements not found. Initialization skipped.");
+    }
+// ...
 
     textColorInput.addEventListener('input', () => {
         document.execCommand('foreColor', false, textColorInput.value);
@@ -1003,3 +1011,4 @@ function updateStorageInfo() {
         document.getElementById('storage-bar').style.backgroundColor = `var(--color-accent-600)`;
     }
 }
+
