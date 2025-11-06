@@ -1,22 +1,466 @@
-To
-The Assistant Executive Engineer
-JKPDD, Sub Division Khanyar
-Srinagar
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tool Web App - Enhanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        // Tailwind CSS configuration remains here for CDN build process
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'bounce-in': 'bounceIn 0.6s ease-out'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center">
+                    <i class="fas fa-tools mr-2"></i>Multi-Tool Web App
+                    <span class="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded-full">Enhanced</span>
+                </h1>
+                <div class="flex items-center space-x-4">
+                    <button id="help-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors tooltip">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="tooltip-text">Press <kbd>?</kbd> for keyboard shortcuts</span>
+                    </button>
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:inline"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Progress Bar -->
+        <div class="h-1 bg-gray-200 dark:bg-gray-700">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+    </header>
 
-Subject: Request for Power Connection on Humanitarian Grounds
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- Tab Navigation -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
+            <div class="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+                <button class="tab-btn px-6 py-3 font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400" data-tab="notepad">
+                    <i class="fas fa-sticky-note mr-2"></i>Notepad
+                </button>
+                <button class="tab-btn px-6 py-3 font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400" data-tab="image-tools">
+                    <i class="fas fa-image mr-2"></i>Image Tools
+                </button>
+                <button class="tab-btn px-6 py-3 font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400" data-tab="settings">
+                    <i class="fas fa-cog mr-2"></i>Settings
+                </button>
+            </div>
+        </div>
 
-Sir,
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Notepad Tab -->
+            <div id="notepad-tab" class="tab-panel">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <!-- Note Management UI -->
+                    <div id="note-management" class="mb-4 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <label for="note-selector" class="font-medium">Current Note:</label>
+                        <select id="note-selector" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700"></select>
+                        <button id="new-note-btn" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-plus mr-2"></i>New
+                        </button>
+                        <button id="delete-note-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
 
-We, the members of the Intizamia Committee Masjid Sharief Khalifa Pora, Khanyar, Srinagar, would like to bring to your kind notice that Mr. Ghulam Qadir Bhat, S/o Late Ghulam Ahmad Bhat, R/o Khalifa Pora, Khanyar, Srinagar, is a local resident of our area. He belongs to a modest family consisting of three members.
+                    <!-- Editor Toolbar -->
+                    <div class="mb-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="bold" title="Bold">
+                            <i class="fas fa-bold"></i>
+                            <span class="tooltip-text">Bold <kbd>Ctrl+B</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="italic" title="Italic">
+                            <i class="fas fa-italic"></i>
+                            <span class="tooltip-text">Italic <kbd>Ctrl+I</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="underline" title="Underline">
+                            <i class="fas fa-underline"></i>
+                            <span class="tooltip-text">Underline <kbd>Ctrl+U</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="strikeThrough" title="Strikethrough">
+                            <i class="fas fa-strikethrough"></i>
+                            <span class="tooltip-text">Strikethrough</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyLeft" title="Align Left">
+                            <i class="fas fa-align-left"></i>
+                            <span class="tooltip-text">Align Left</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyCenter" title="Align Center">
+                            <i class="fas fa-align-center"></i>
+                            <span class="tooltip-text">Align Center</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyRight" title="Align Right">
+                            <i class="fas fa-align-right"></i>
+                            <span class="tooltip-text">Align Right</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyFull" title="Justify">
+                            <i class="fas fa-align-justify"></i>
+                            <span class="tooltip-text">Justify</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <!-- The 4 problematic buttons have been removed from here -->
+                        <select class="editor-select px-3 py-1 rounded bg-gray-200 dark:bg-gray-700" id="font-size">
+                            <option value="1">Small</option>
+                            <option value="3" selected>Normal</option>
+                            <option value="5">Large</option>
+                            <option value="7">Extra Large</option>
+                        </select>
+                        <select class="editor-select px-3 py-1 rounded bg-gray-200 dark:bg-gray-700" id="font-family">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                        <input type="color" class="editor-color w-8 h-8 rounded" id="text-color" value="#000000" title="Text Color">
+                        <input type="color" class="editor-color w-8 h-8 rounded" id="bg-color" value="#ffffff" title="Background Color">
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="createLink" title="Insert Link">
+                            <i class="fas fa-link"></i>
+                            <span class="tooltip-text">Insert Link</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="insertHorizontalRule" title="Horizontal Rule">
+                            <i class="fas fa-minus"></i>
+                            <span class="tooltip-text">Horizontal Rule</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="removeFormat" title="Clear Formatting">
+                            <i class="fas fa-eraser"></i>
+                            <span class="tooltip-text">Clear Formatting</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="undo" title="Undo">
+                            <i class="fas fa-undo"></i>
+                            <span class="tooltip-text">Undo <kbd>Ctrl+Z</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="redo" title="Redo">
+                            <i class="fas fa-redo"></i>
+                            <span class="tooltip-text">Redo <kbd>Ctrl+Y</kbd></span>
+                        </button>
+                    </div>
+                    <div id="editor" class="editor-content p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" contenteditable="true">
+                        Start typing your notes here...
+                    </div>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex space-x-2">
+                            <button id="clear-editor" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Clear
+                            </button>
+                            <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-calculator mr-2"></i>Word Count
+                            </button>
+                        </div>
+                        <div class="space-x-2">
+                            <button id="export-html" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-code mr-2"></i>Export HTML
+                            </button>
+                            <button id="save-local" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-save mr-2"></i>Save All Notes
+                            </button>
+                            <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-download mr-2"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                    <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-bounce-in">
+                            <h3 class="text-lg font-semibold mb-4">Document Statistics</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span>Words:</span>
+                                    <span id="word-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Characters:</span>
+                                    <span id="char-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Characters (no spaces):</span>
+                                    <span id="char-no-space-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Paragraphs:</span>
+                                    <span id="paragraph-count-value" class="font-medium">0</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex justify-end">
+                                <button id="close-word-count" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-On humanitarian grounds, we humbly request your good office to kindly grant a domestic power connection in his favour at the earliest, so that he and his family may not suffer any further inconvenience.
+            <!-- Image Tools Tab -->
+            <div id="image-tools-tab" class="tab-panel hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- Image Tools Sidebar -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <h2 class="text-xl font-semibold mb-4">Image Tools</h2>
+                            <div class="space-y-2">
+                                <button id="thumbnail-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-compress mr-2"></i>Thumbnail Generator
+                                </button>
+                                <button id="resize-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-expand-arrows-alt mr-2"></i>Resize
+                                </button>
+                                <button id="compress-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-file-archive mr-2"></i>Compress
+                                </button>
+                                <button id="convert-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-exchange-alt mr-2"></i>Convert
+                                </button>
+                                <button id="watermark-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-tint mr-2"></i>Watermark
+                                </button>
+                                <button id="merge-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-object-group mr-2"></i>Image Merger
+                                </button>
+                                <button id="filter-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-magic mr-2"></i>Filters & Effects
+                                </button>
+                                <button id="metadata-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-info-circle mr-2"></i>Metadata
+                                </button>
+                                <button id="batch-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-layer-group mr-2"></i>Batch Process
+                                </button>
+                            </div>
+                            
+                            <!-- Image Upload -->
+                            <div class="mt-6">
+                                <label for="image-upload" class="block w-full cursor-pointer">
+                                    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+                                        <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                        <p id="upload-prompt" class="text-sm text-gray-600 dark:text-gray-400">
+                                            Select an Image
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
+                                    </div>
+                                </label>
+                                <input type="file" id="image-upload" class="hidden" accept="image/*" multiple>
+                            </div>
+                            
+                            <!-- Recent Files -->
+                            <div class="mt-6">
+                                <h3 class="text-sm font-medium mb-2">Recent Files</h3>
+                                <div id="recent-files" class="recent-files space-y-2">
+                                    <!-- Recent files will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-We shall remain highly obliged for your kind consideration and support.
+                    <!-- Image Preview and Controls -->
+                    <div class="lg:col-span-3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold">Preview</h2>
+                                <div class="flex space-x-2">
+                                    <button id="compare-toggle" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
+                                        <i class="fas fa-columns mr-1"></i>Compare
+                                    </button>
+                                    <button id="reset-image" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
+                                        <i class="fas fa-undo mr-1"></i>Reset
+                                    </button>
+                                    <button id="zoom-in" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button id="zoom-out" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                    <button id="zoom-fit" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="image-preview-container" class="min-h-[300px] flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden relative">
+                                <div class="text-center text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-image text-4xl mb-2"></i>
+                                    <p>No image selected</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Tool Controls -->
+                            <div id="tool-controls" class="mt-6 space-y-4">
+                                <!-- All image tool controls remain the same -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-Yours faithfully,
-Intizamia Committee
-Masjid Sharief Khalifa Pora
-Khanyar, Srinagar
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-panel hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-6">Settings</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Appearance</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center justify-between">
+                                    <span>Dark Mode</span>
+                                    <div class="relative">
+                                        <input type="checkbox" id="dark-mode-toggle" class="sr-only">
+                                        <div class="w-10 h-6 bg-gray-300 dark:bg-indigo-600 rounded-full shadow-inner"></div>
+                                        <div class="dot absolute w-4 h-4 bg-white rounded-full shadow left-1 top-1 transition"></div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Storage</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span>Storage Used</span>
+                                    <span id="storage-used" class="text-sm">0 KB</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="storage-bar" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                                <button id="clear-storage" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                    <i class="fas fa-trash mr-2"></i>Clear All Local Data
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">About</h3>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">
+                                <p>Multi-Tool Web App v2.0 Enhanced</p>
+                                <p>A comprehensive tool for text editing and image manipulation</p>
+                                <p class="mt-2">© 2023 Multi-Tool Web App. All rights reserved.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-Date: ___________
-Contact: ___________
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto animate-bounce-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Keyboard Shortcuts</h3>
+                <button id="close-help" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-medium mb-2">General</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Show Help</span>
+                            <kbd>?</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Toggle Dark Mode</span>
+                            <kbd>Ctrl+D</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Save Current Work</span>
+                            <kbd>Ctrl+S</kbd>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Notepad</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Bold</span>
+                            <kbd>Ctrl+B</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Italic</span>
+                            <kbd>Ctrl+I</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Underline</span>
+                            <kbd>Ctrl+U</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Undo</span>
+                            <kbd>Ctrl+Z</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Redo</span>
+                            <kbd>Ctrl+Y</kbd>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Image Tools</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Zoom In</span>
+                            <kbd>Ctrl+</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Zoom Out</span>
+                            <kbd>Ctrl-</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Reset Zoom</span>
+                            <kbd>Ctrl+0</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Reset Image</span>
+                            <kbd>Ctrl+R</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed bottom-4 right-4 z-50"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
