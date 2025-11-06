@@ -1440,6 +1440,7 @@ function setupDragAndDrop() {
         const files = dt.files;
         
         if (files.length > 0) {
+            const imageUpload = document.getElementById('image-upload');
             imageUpload.files = files;
             handleImageUpload({ target: { files: files } });
         }
