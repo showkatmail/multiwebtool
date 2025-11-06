@@ -10,20 +10,28 @@
 
 /* Editor & Markdown Preview */
 .editor-content, #markdown-preview { min-height: 400px; outline: none; }
-.editor-content img, #markdown-preview img { max-width: 100%; height: auto; }
-#markdown-preview pre { background-color: #282c34; color: #abb2bf; padding: 1em; border-radius: 8px; }
+.editor-content img, #markdown-preview img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+.prose pre { background-color: #282c34 !important; color: #abb2bf !important; }
+.dark .prose { --tw-prose-invert-body: #d1d5db; }
 
 /* Tooltip */
 .tooltip { position: relative; }
-.tooltip-text { visibility: hidden; width: 150px; background-color: #333; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -75px; opacity: 0; transition: opacity 0.3s; font-size: 12px; }
+.tooltip-text { visibility: hidden; width: 150px; background-color: #333; color: #fff; text-align: center; border-radius: 6px; padding: 5px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -75px; opacity: 0; transition: opacity 0.3s; font-size: 12px; pointer-events: none; }
 .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
 
 /* Keyboard hint */
 .kbd { background-color: #e5e7eb; border: 1px solid #d1d5db; border-radius: 4px; box-shadow: 0 1px 0 rgba(0,0,0,0.1); color: #374151; display: inline-block; font-size: .8em; line-height: 1; padding: 3px 6px; white-space: nowrap; }
 .dark .kbd { background-color: #4b5563; border-color: #6b7280; color: #d1d5db; }
 
+/* Dark mode toggle dot transition */
+.dark .dot { transform: translateX(100%); }
+
 /* Color Picker Tool */
 #color-picker-preview { width: 100%; height: 50px; border: 2px solid #e5e7eb; border-radius: 8px; transition: background-color 0.1s ease; }
 #image-canvas { cursor: crosshair; }
 .color-value { background-color: #f3f4f6; padding: 4px 8px; border-radius: 6px; font-family: monospace; cursor: pointer; }
 .dark .color-value { background-color: #374151; }
+
+/* General utility */
+.image-tool-btn.active { background-color: #4f46e5; color: white; }
+.dark .image-tool-btn.active { background-color: #6366f1; }
