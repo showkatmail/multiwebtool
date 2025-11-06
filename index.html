@@ -7,21 +7,36 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- New CDN for QR Code Generation -->
+    <!-- Libraries for new features -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <!-- New CDN for Markdown Parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- New CDNs for Syntax Highlighting -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
 
     <link rel="stylesheet" href="css/style.css">
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA manifest link is REMOVED for now -->
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    typography: ({ theme }) => ({
+                        DEFAULT: {
+                            css: {
+                                pre: {
+                                    backgroundColor: '#282c34',
+                                    color: theme('colors.gray.200'),
+                                    padding: theme('padding.4'),
+                                    borderRadius: theme('borderRadius.lg'),
+                                },
+                                code: {
+                                    color: theme('colors.pink.500'),
+                                    '&::before': { content: '"" !important' },
+                                    '&::after': { content: '"" !important' },
+                                },
+                            },
+                        },
+                    }),
                     animation: {
                         'fade-in': 'fadeIn 0.5s ease-in-out',
                         'bounce-in': 'bounceIn 0.6s ease-out'
@@ -36,7 +51,10 @@
                         }
                     }
                 }
-            }
+            },
+            plugins: [
+                require('@tailwindcss/typography'),
+            ],
         }
     </script>
 </head>
@@ -90,69 +108,49 @@
             <!-- Notepad Tab -->
             <div id="notepad-tab" class="tab-panel">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <!-- Note Management UI -->
                     <div class="mb-4 flex flex-wrap items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
                         <select id="note-selector" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700"></select>
                         <button id="new-note-btn" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex-shrink-0 tooltip"><i class="fas fa-plus"></i><span class="tooltip-text">New Note</span></button>
                         <button id="delete-note-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex-shrink-0 tooltip"><i class="fas fa-trash"></i><span class="tooltip-text">Delete Note</span></button>
                         <button id="toggle-markdown-btn" class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors flex-shrink-0 tooltip"><i class="fab fa-markdown"></i><span class="tooltip-text">Toggle Markdown</span></button>
                     </div>
-
-                    <!-- Editor Toolbar -->
                     <div id="editor-toolbar" class="mb-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
-                        <!-- All editor buttons here -->
+                        <!-- Toolbar buttons will be inserted by JS -->
                     </div>
-
-                    <!-- Editor Area -->
                     <div id="editor-area" class="relative">
                         <div id="editor" class="editor-content p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" contenteditable="true"></div>
-                        <div id="markdown-preview" class="hidden prose dark:prose-invert max-w-none p-4 border border-gray-300 dark:border-gray-600 rounded-lg"></div>
+                        <div id="markdown-preview" class="hidden prose dark:prose-invert max-w-none p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"></div>
                     </div>
-
                     <div class="mt-4 flex flex-wrap justify-between items-center gap-4">
-                        <div class="flex space-x-2">
-                            <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"><i class="fas fa-calculator mr-2"></i>Stats</button>
-                        </div>
+                        <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"><i class="fas fa-calculator mr-2"></i>Stats</button>
                         <div class="space-x-2">
                             <button id="export-html" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors"><i class="fas fa-code mr-2"></i>Export HTML</button>
                             <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"><i class="fas fa-download mr-2"></i>Download Text</button>
                         </div>
                     </div>
-                    <!-- Word Count Modal -->
                 </div>
             </div>
 
             <!-- Image Tools Tab -->
             <div id="image-tools-tab" class="tab-panel hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <!-- Image Tools Sidebar -->
                     <div class="lg:col-span-1">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 space-y-6">
                             <div>
                                 <h2 class="text-xl font-semibold mb-4">Image Utilities</h2>
-                                <div class="space-y-2">
-                                    <button id="thumbnail-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-compress mr-2 w-4"></i>Thumbnail</button>
-                                    <button id="resize-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-expand-arrows-alt mr-2 w-4"></i>Resize</button>
-                                    <button id="compress-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-file-archive mr-2 w-4"></i>Compress</button>
-                                    <button id="convert-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-exchange-alt mr-2 w-4"></i>Convert</button>
-                                    <button id="watermark-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-tint mr-2 w-4"></i>Watermark</button>
-                                    <button id="filter-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-magic mr-2 w-4"></i>Filters</button>
-                                    <button id="color-picker-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-eye-dropper mr-2 w-4"></i>Color Picker</button>
-                                    <button id="qr-code-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600"><i class="fas fa-qrcode mr-2 w-4"></i>QR Code Gen</button>
+                                <div class="space-y-2" id="image-tool-buttons">
+                                    <!-- Tool buttons will be inserted by JS -->
                                 </div>
                             </div>
-                            <!-- Image Upload & Recent Files -->
                         </div>
                     </div>
-                    <!-- Image Preview and Controls -->
                     <div class="lg:col-span-3">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                             <div id="image-workspace">
-                                <!-- Image Preview, Upload, etc. -->
+                                <!-- This area will be populated by JS based on whether an image is loaded -->
                             </div>
-                            <!-- Tool Controls -->
                             <div id="tool-controls" class="mt-6 space-y-4">
-                                <!-- All tool control panels will be inserted here by JS -->
+                                <!-- Tool-specific controls will be inserted here by JS -->
                             </div>
                         </div>
                     </div>
@@ -162,25 +160,75 @@
             <!-- Settings Tab -->
             <div id="settings-tab" class="tab-panel hidden">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 max-w-2xl mx-auto">
-                    <h2 class="text-xl font-semibold mb-6">Settings</h2>
+                    <h2 class="text-2xl font-semibold mb-6 border-b pb-4 dark:border-gray-700">Settings</h2>
                     <div class="space-y-8">
-                        <!-- Appearance, Storage, Data Management, About sections -->
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Appearance</h3>
+                            <label class="flex items-center justify-between">
+                                <span>Dark Mode</span>
+                                <div class="relative">
+                                    <input type="checkbox" id="dark-mode-toggle" class="sr-only">
+                                    <div class="w-10 h-6 bg-gray-300 rounded-full shadow-inner transition-colors dark:bg-indigo-600"></div>
+                                    <div class="dot absolute w-4 h-4 bg-white rounded-full shadow left-1 top-1 transition-transform dark:translate-x-full"></div>
+                                </div>
+                            </label>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">User Preferences</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="default-export-format" class="block text-sm font-medium mb-1">Default Image Export Format</label>
+                                    <select id="default-export-format" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></select>
+                                </div>
+                                <div>
+                                    <label for="default-export-quality" class="block text-sm font-medium mb-1">Default JPG/WebP Quality (<span id="quality-preview">85</span>)</label>
+                                    <input type="range" id="default-export-quality" min="1" max="100" value="85" class="w-full">
+                                </div>
+                            </div>
+                            <button id="save-settings-btn" class="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"><i class="fas fa-save mr-2"></i>Save Preferences</button>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Data Management</h3>
+                            <div class="flex flex-wrap gap-4">
+                                <button id="export-data-btn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"><i class="fas fa-file-export mr-2"></i>Export All Data</button>
+                                <button id="import-data-btn" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"><i class="fas fa-file-import mr-2"></i>Import Data</button>
+                                <input type="file" id="import-file-input" class="hidden" accept=".json">
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Storage</h3>
+                            <div class="flex items-center justify-between text-sm">
+                                <span>Storage Used:</span><span id="storage-used">0 KB</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
+                                <div id="storage-bar" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <button id="clear-storage" class="mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"><i class="fas fa-trash mr-2"></i>Clear All Local Data</button>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">About</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Multi-Tool Web App v3.0 Enhanced. A comprehensive tool for text editing and image manipulation.</p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- Modals (Help, Word Count) -->
+    <!-- Word Count Modal -->
+    <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <!-- Modal content remains the same -->
+    </div>
+    
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <!-- Modal content remains the same -->
+    </div>
+
     <!-- Notification Container -->
     <div id="notification-container" class="fixed bottom-4 right-4 z-[999]"></div>
+
     <script src="js/app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registered.'), err => console.log('SW registration failed: ', err));
-            });
-        }
-    </script>
+    <!-- PWA Service Worker script is REMOVED for now -->
 </body>
 </html>
