@@ -17,7 +17,7 @@
     <link rel="stylesheet" href="css/style.css">
 
     <script>
-        // Corrected Tailwind Config
+        // Corrected Tailwind Config (No 'require')
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -215,13 +215,24 @@
     </main>
 
     <!-- Word Count Modal -->
-    <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Full modal HTML is here -->
+    <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-bounce-in">
+            <h3 class="text-lg font-semibold mb-4">Document Statistics</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between"><span>Words:</span><span id="word-count-value" class="font-medium">0</span></div>
+                <div class="flex justify-between"><span>Characters:</span><span id="char-count-value" class="font-medium">0</span></div>
+                <div class="flex justify-between"><span>Characters (no spaces):</span><span id="char-no-space-count-value" class="font-medium">0</span></div>
+                <div class="flex justify-between"><span>Paragraphs:</span><span id="paragraph-count-value" class="font-medium">0</span></div>
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button id="close-word-count" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg">Close</button>
+            </div>
+        </div>
     </div>
     
     <!-- Help Modal -->
-    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <!-- Full modal HTML is here -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+        <!-- Full modal HTML remains unchanged -->
     </div>
 
     <!-- Notification Container -->
