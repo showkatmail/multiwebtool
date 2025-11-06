@@ -95,12 +95,14 @@ function initializeTheme() {
     setTheme(savedTheme);
     
     // Listeners
-    themeToggle.addEventListener('click', toggleTheme);
-    darkModeToggle.addEventListener('change', toggleTheme);
+    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+    if (darkModeToggle) darkModeToggle.addEventListener('change', toggleTheme);
     
-    accentPicker.querySelectorAll('.theme-option').forEach(option => {
-        option.addEventListener('click', () => setAccentColor(option.getAttribute('data-color')));
-    });
+    if (accentPicker) {
+        accentPicker.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', () => setAccentColor(option.getAttribute('data-color')));
+        });
+    }
 }
 
 function setTheme(theme) {
@@ -142,13 +144,15 @@ function setAccentColor(color) {
     }
     
     // Update active state in picker
-    accentPicker.querySelectorAll('.theme-option').forEach(option => {
-        if (option.getAttribute('data-color') === color) {
-            option.classList.add('active');
-        } else {
-            option.classList.remove('active');
-        }
-    });
+    if (accentPicker) {
+        accentPicker.querySelectorAll('.theme-option').forEach(option => {
+            if (option.getAttribute('data-color') === color) {
+                option.classList.add('active');
+            } else {
+                option.classList.remove('active');
+            }
+        });
+    }
 
     showNotification(`Accent color set to ${color.charAt(0).toUpperCase() + color.slice(1)}`, 'info');
 }
@@ -224,19 +228,22 @@ function initializeKeyboardShortcuts() {
     });
 
     // Help Modal Search
-    document.getElementById('shortcut-search').addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase();
-        document.querySelectorAll('#shortcut-list > div > div').forEach(group => {
-            group.querySelectorAll('.flex').forEach(shortcut => {
-                const text = shortcut.getAttribute('data-shortcut');
-                if (text && text.includes(searchTerm)) {
-                    shortcut.classList.remove('hidden');
-                } else {
-                    shortcut.classList.add('hidden');
-                }
+    const searchInput = document.getElementById('shortcut-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            document.querySelectorAll('#shortcut-list > div > div').forEach(group => {
+                group.querySelectorAll('.flex').forEach(shortcut => {
+                    const text = shortcut.getAttribute('data-shortcut');
+                    if (text && text.includes(searchTerm)) {
+                        shortcut.classList.remove('hidden');
+                    } else {
+                        shortcut.classList.add('hidden');
+                    }
+                });
             });
         });
-    });
+    }
 }
 
 function toggleHelpModal() {
@@ -255,8 +262,6 @@ function saveCurrentWork() {
         showNotification('All notes have been saved.', 'success');
     } else if (tabName === 'image-tools' && currentImageData) {
         // Assume saving the final processed image if there is one
-        // For this simple stub, we just save to recents
-        // addToRecentFiles(currentImageData);
         showNotification('Current state saved (stub).', 'success');
     }
 }
@@ -302,15 +307,27 @@ function switchTab(targetTab) {
 
 function initializeEditor() {
     const editor = document.getElementById('editor');
-    
-    // Note Management
-    loadNotesFromLocal();
-    renderNoteSelector();
-    
-    document.getElementById('new-note-btn').addEventListener('click', createNewNote);
-    document.getElementById('delete-note-btn').addEventListener('click', deleteCurrentNote);
-    document.getElementById('note-selector').addEventListener('change', switchNote);
+    if (!editor) {
+        console.error("Editor element (#editor) not found. Cannot initialize Notepad.");
+        return;
+    }
 
+    // Note Management
+    loadNotesFromLocal(); 
+
+    // Core Note Management Listeners (FIX for 'Cannot read properties of null')
+    const newNoteBtn = document.getElementById('new-note-btn');
+    const deleteNoteBtn = document.getElementById('delete-note-btn');
+    const noteSelector = document.getElementById('note-selector');
+
+    if (newNoteBtn && deleteNoteBtn && noteSelector) {
+        newNoteBtn.addEventListener('click', createNewNote);
+        deleteNoteBtn.addEventListener('click', deleteCurrentNote);
+        noteSelector.addEventListener('change', switchNote);
+    } else {
+        console.error("Notepad core management buttons/selector not found. Functionality reduced.");
+    }
+    
     // Editor Toolbar
     const editorButtons = document.querySelectorAll('.editor-btn');
     editorButtons.forEach(button => {
@@ -333,62 +350,47 @@ function initializeEditor() {
     });
 
     const headingSelector = document.getElementById('heading-selector');
-    headingSelector.addEventListener('change', () => {
-        // document.execCommand('formatBlock', false, headingSelector.value); // Deprecated but works in contenteditable
-        handleFormatBlock('heading', headingSelector.value);
-        editor.focus();
-    });
-
     const fontSizeSelect = document.getElementById('font-size');
     const fontFamilySelect = document.getElementById('font-family');
     const textColorInput = document.getElementById('text-color');
     const bgColorInput = document.getElementById('bg-color');
 
-    // ... (lines 347-350 in the previous app.js)
-    // Note Management
-    loadNotesFromLocal(); // <--- This runs first
+    if (headingSelector) headingSelector.addEventListener('change', () => {
+        handleFormatBlock('heading', headingSelector.value);
+        editor.focus();
+    });
 
-    // Check if core elements for Note Management are present before attaching listeners
-    const newNoteBtn = document.getElementById('new-note-btn');
-    const deleteNoteBtn = document.getElementById('delete-note-btn');
-    const noteSelector = document.getElementById('note-selector');
+    if (fontSizeSelect) fontSizeSelect.addEventListener('change', () => {
+        document.execCommand('fontSize', false, fontSizeSelect.value);
+        editor.focus();
+    });
+    
+    if (fontFamilySelect) fontFamilySelect.addEventListener('change', () => {
+        document.execCommand('fontName', false, fontFamilySelect.value);
+        editor.focus();
+    });
 
-    if (newNoteBtn && deleteNoteBtn && noteSelector) {
-        newNoteBtn.addEventListener('click', createNewNote);
-        deleteNoteBtn.addEventListener('click', deleteCurrentNote);
-        noteSelector.addEventListener('change', switchNote);
-    } else {
-        console.error("Notepad core management elements not found. Initialization skipped.");
-    }
-// ...
-
-    textColorInput.addEventListener('input', () => {
+    if (textColorInput) textColorInput.addEventListener('input', () => {
         document.execCommand('foreColor', false, textColorInput.value);
     });
 
-    bgColorInput.addEventListener('input', () => {
+    if (bgColorInput) bgColorInput.addEventListener('input', () => {
         document.execCommand('hiliteColor', false, bgColorInput.value);
     });
 
     // Editor Actions
-    document.getElementById('clear-editor').addEventListener('click', () => {
+    if (document.getElementById('clear-editor')) document.getElementById('clear-editor').addEventListener('click', () => {
         if (confirm('Are you sure you want to clear the content of this note?')) {
             editor.innerHTML = '';
             updateCurrentNoteContent(true); // Force save on clear
         }
     });
-
-    // The old modal button is now hidden, its function is taken by the live stats
-    // document.getElementById('word-count').addEventListener('click', () => {
-    //     updateWordCount();
-    //     document.getElementById('word-count-modal').classList.remove('hidden');
-    // });
     
-    document.getElementById('export-html').addEventListener('click', exportHtml);
-    document.getElementById('export-md').addEventListener('click', exportMarkdown); // New
-    document.getElementById('export-pdf').addEventListener('click', exportPdf);     // New
-    document.getElementById('save-local').addEventListener('click', saveCurrentWork);
-    document.getElementById('download-text').addEventListener('click', downloadText);
+    if (document.getElementById('export-html')) document.getElementById('export-html').addEventListener('click', exportHtml);
+    if (document.getElementById('export-md')) document.getElementById('export-md').addEventListener('click', exportMarkdown); // New
+    if (document.getElementById('export-pdf')) document.getElementById('export-pdf').addEventListener('click', exportPdf);     // New
+    if (document.getElementById('save-local')) document.getElementById('save-local').addEventListener('click', saveCurrentWork);
+    if (document.getElementById('download-text')) document.getElementById('download-text').addEventListener('click', downloadText);
 
     // Auto-save & Live Stats on input
     editor.addEventListener('input', () => {
@@ -401,7 +403,7 @@ function handleFormatBlock(command, value = null) {
     const editor = document.getElementById('editor');
     const selection = window.getSelection();
     
-    if (selection.rangeCount > 0) {
+    if (selection.rangeCount > 0 && editor) {
         editor.focus();
         
         if (command === 'blockquote') {
@@ -429,15 +431,21 @@ function handleFormatBlock(command, value = null) {
 
 function updateLiveStats() {
     const editor = document.getElementById('editor');
+    if (!editor) return;
+
     const text = editor.innerText;
     const words = text.trim() ? text.trim().split(/\s+/) : [];
     const characters = text.length;
     // Count paragraphs by splitting on double newlines and filtering out empty strings
     const paragraphs = text.trim() ? text.trim().split(/\n\s*\n/).filter(p => p.length > 0) : [];
     
-    document.getElementById('word-count-value').textContent = words.length;
-    document.getElementById('char-count-value').textContent = characters;
-    document.getElementById('paragraph-count-value').textContent = paragraphs.length;
+    const wordCount = document.getElementById('word-count-value');
+    const charCount = document.getElementById('char-count-value');
+    const paraCount = document.getElementById('paragraph-count-value');
+
+    if (wordCount) wordCount.textContent = words.length;
+    if (charCount) charCount.textContent = characters;
+    if (paraCount) paraCount.textContent = paragraphs.length;
 }
 
 function updateCurrentNoteContent(forceSave = false) {
@@ -448,22 +456,29 @@ function updateCurrentNoteContent(forceSave = false) {
     if (noteSaveTimeout) clearTimeout(noteSaveTimeout);
 
     // Set saving status icon
-    document.getElementById('save-status-icon').className = 'fas fa-circle text-xs status-saving tooltip-right';
-    document.getElementById('save-status-icon').title = 'Note Status: Saving...';
+    const saveIcon = document.getElementById('save-status-icon');
+    if (saveIcon) {
+        saveIcon.className = 'fas fa-circle text-xs status-saving tooltip-right';
+        saveIcon.title = 'Note Status: Saving...';
+    }
 
     // Set new timeout for auto-save
     noteSaveTimeout = setTimeout(() => {
+        const editorContent = document.getElementById('editor').innerHTML;
+        
         // Save version history before updating content
-        if (currentNote.content !== document.getElementById('editor').innerHTML) {
+        if (currentNote.content !== editorContent) {
             saveNoteVersion(currentNote);
         }
         
-        currentNote.content = document.getElementById('editor').innerHTML;
+        currentNote.content = editorContent;
         saveNotesToLocal();
 
         // Set saved status icon
-        document.getElementById('save-status-icon').className = 'fas fa-circle text-xs status-saved tooltip-right';
-        document.getElementById('save-status-icon').title = 'Note Status: Saved';
+        if (saveIcon) {
+            saveIcon.className = 'fas fa-circle text-xs status-saved tooltip-right';
+            saveIcon.title = 'Note Status: Saved';
+        }
     }, forceSave ? 10 : NOTE_AUTOSAVE_DELAY);
 }
 
@@ -491,6 +506,8 @@ function saveNoteVersion(note) {
 
 function renderVersionHistory() {
     const historyContainer = document.getElementById('version-history');
+    if (!historyContainer) return;
+
     historyContainer.innerHTML = '';
     const currentNote = notes.find(note => note.id === currentNoteId);
 
@@ -524,14 +541,16 @@ function renderVersionHistory() {
 
 function rollbackToVersion(index) {
     const currentNote = notes.find(note => note.id === currentNoteId);
-    if (!currentNote || !currentNote.versions || !currentNote.versions[index]) return;
+    const editor = document.getElementById('editor');
+
+    if (!currentNote || !currentNote.versions || !currentNote.versions[index] || !editor) return;
 
     if (confirm('Are you sure you want to rollback to this version? Your current changes will be saved as a new version.')) {
         // Save current state as a new version before rolling back
         saveNoteVersion(currentNote);
 
         const targetVersion = currentNote.versions[index];
-        document.getElementById('editor').innerHTML = targetVersion.content;
+        editor.innerHTML = targetVersion.content;
         updateCurrentNoteContent(true); // Force save the rolled-back content
         showNotification('Note rolled back successfully.', 'info');
         renderVersionHistory(); // Re-render to show the new version
@@ -570,8 +589,10 @@ function loadNotesFromLocal() {
     }
 
     const currentNote = notes.find(note => note.id === currentNoteId);
-    if (currentNote) {
-        document.getElementById('editor').innerHTML = currentNote.content;
+    const editor = document.getElementById('editor');
+
+    if (currentNote && editor) {
+        editor.innerHTML = currentNote.content;
         updateLiveStats();
         renderVersionHistory();
     }
@@ -585,6 +606,8 @@ function saveNotesToLocal() {
 
 function renderNoteSelector() {
     const noteSelector = document.getElementById('note-selector');
+    if (!noteSelector) return;
+
     noteSelector.innerHTML = '';
     notes.forEach(note => {
         const option = document.createElement('option');
@@ -598,16 +621,24 @@ function renderNoteSelector() {
 }
 
 function switchNote() {
-    const selectedId = parseInt(document.getElementById('note-selector').value);
+    const noteSelector = document.getElementById('note-selector');
+    const editor = document.getElementById('editor');
+
+    if (!noteSelector || !editor) return;
+
+    const selectedId = parseInt(noteSelector.value);
     const newNote = notes.find(note => note.id === selectedId);
     if (newNote) {
         currentNoteId = selectedId;
-        document.getElementById('editor').innerHTML = newNote.content;
+        editor.innerHTML = newNote.content;
         localStorage.setItem('last-active-note-id', currentNoteId);
         updateLiveStats();
         renderVersionHistory();
-        document.getElementById('save-status-icon').className = 'fas fa-circle text-xs status-saved tooltip-right';
-        document.getElementById('save-status-icon').title = 'Note Status: Saved';
+        const saveIcon = document.getElementById('save-status-icon');
+        if (saveIcon) {
+            saveIcon.className = 'fas fa-circle text-xs status-saved tooltip-right';
+            saveIcon.title = 'Note Status: Saved';
+        }
     }
 }
 
@@ -623,7 +654,10 @@ function createNewNote() {
         notes.push(newNote);
         currentNoteId = newNote.id;
         localStorage.setItem('last-active-note-id', currentNoteId);
-        document.getElementById('editor').innerHTML = '';
+        
+        const editor = document.getElementById('editor');
+        if (editor) editor.innerHTML = '';
+        
         renderNoteSelector();
         saveNotesToLocal();
         switchNote();
@@ -652,33 +686,45 @@ function deleteCurrentNote() {
 // --- Notepad Exporting (Enhanced) ---
 
 function exportHtml() {
-    const htmlContent = document.getElementById('editor').innerHTML;
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+    const currentNote = notes.find(n => n.id === currentNoteId);
+    
+    const htmlContent = editor.innerHTML;
     const blob = new Blob([htmlContent], { type: 'text/html' });
-    downloadBlob(blob, `${notes.find(n => n.id === currentNoteId).name}.html`);
+    downloadBlob(blob, `${currentNote ? currentNote.name : 'note'}.html`);
     showNotification('HTML exported successfully', 'success');
 }
 
 function downloadText() {
-    const content = document.getElementById('editor').innerText;
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+    const currentNote = notes.find(n => n.id === currentNoteId);
+
+    const content = editor.innerText;
     const blob = new Blob([content], { type: 'text/plain' });
-    downloadBlob(blob, `${notes.find(n => n.id === currentNoteId).name}.txt`);
+    downloadBlob(blob, `${currentNote ? currentNote.name : 'note'}.txt`);
     showNotification('File downloaded successfully', 'success');
 }
 
 function exportMarkdown() {
     // *** Placeholder for client-side library like turndown.js ***
-    const htmlContent = document.getElementById('editor').innerHTML;
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+    const currentNote = notes.find(n => n.id === currentNoteId);
+
+    const htmlContent = editor.innerHTML;
     // const markdownContent = turndown.turndown(htmlContent); 
     const markdownContent = 'Markdown Export: ' + htmlContent.replace(/<br>/g, '\n').replace(/<[^>]+>/g, ''); 
     const blob = new Blob([markdownContent], { type: 'text/markdown' });
-    downloadBlob(blob, `${notes.find(n => n.id === currentNoteId).name}.md`);
+    downloadBlob(blob, `${currentNote ? currentNote.name : 'note'}.md`);
     showNotification('Markdown exported successfully (using stub).', 'info');
 }
 
 function exportPdf() {
     // *** Placeholder for client-side library like jsPDF ***
     // const editorContent = document.getElementById('editor');
-    // jsPDF().html(editorContent, { callback: (doc) => doc.save('note.pdf') });
+    // if (editorContent) jsPDF().html(editorContent, { callback: (doc) => doc.save('note.pdf') });
     showNotification('PDF export initiated (using jsPDF stub).', 'info');
 }
 
@@ -708,20 +754,23 @@ function initializeImageTools() {
     const imageUpload = document.getElementById('image-upload');
     const dropZone = document.querySelector('label[for="image-upload"] div');
 
-    imageUpload.addEventListener('change', handleImageUpload);
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('ring-4', 'ring-accent-500'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('ring-4', 'ring-accent-500'));
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('ring-4', 'ring-accent-500');
-        handleImageUpload({ target: { files: e.dataTransfer.files } });
-    });
+    if (imageUpload) imageUpload.addEventListener('change', handleImageUpload);
+    
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('ring-4', 'ring-accent-500'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('ring-4', 'ring-accent-500'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('ring-4', 'ring-accent-500');
+            handleImageUpload({ target: { files: e.dataTransfer.files } });
+        });
+    }
     
     // General Image Actions
-    document.getElementById('zoom-in').addEventListener('click', () => currentImageData && zoomImage(1.2));
-    document.getElementById('zoom-out').addEventListener('click', () => currentImageData && zoomImage(0.8));
-    document.getElementById('zoom-fit').addEventListener('click', () => currentImageData && resetZoom());
-    document.getElementById('reset-image').addEventListener('click', resetImage);
+    if (document.getElementById('zoom-in')) document.getElementById('zoom-in').addEventListener('click', () => currentImageData && zoomImage(1.2));
+    if (document.getElementById('zoom-out')) document.getElementById('zoom-out').addEventListener('click', () => currentImageData && zoomImage(0.8));
+    if (document.getElementById('zoom-fit')) document.getElementById('zoom-fit').addEventListener('click', () => currentImageData && resetZoom());
+    if (document.getElementById('reset-image')) document.getElementById('reset-image').addEventListener('click', resetImage);
 }
 
 function handleImageUpload(event) {
@@ -742,7 +791,7 @@ function handleImageUpload(event) {
             currentImageData = e.target.result;
             displayImage(currentImageData);
             resetZoom();
-            addToRecentFiles(file.name, currentImageData.length);
+            addToRecentFiles(file.name, currentImageData ? currentImageData.length : 0);
         };
         reader.readAsDataURL(file);
     }
@@ -752,22 +801,30 @@ function handleImageUpload(event) {
 
 function displayImage(dataURL) {
     const container = document.getElementById('image-preview-container');
+    const resetBtn = document.getElementById('reset-image');
+    const compareBtn = document.getElementById('compare-toggle');
+
+    if (!container) return;
+    
     container.innerHTML = `<img id="main-image-preview" src="${dataURL}" alt="Image Preview" style="transform: scale(${zoomLevel}); transition: none;" class="max-w-full max-h-full object-contain mx-auto">`;
-    document.getElementById('reset-image').classList.remove('hidden');
-    document.getElementById('compare-toggle').classList.remove('hidden');
+    if (resetBtn) resetBtn.classList.remove('hidden');
+    if (compareBtn) compareBtn.classList.remove('hidden');
 }
 
 function zoomImage(factor) {
-    if (!document.getElementById('main-image-preview')) return;
+    const preview = document.getElementById('main-image-preview');
+    if (!preview) return;
     zoomLevel *= factor;
-    document.getElementById('main-image-preview').style.transform = `scale(${zoomLevel})`;
+    preview.style.transform = `scale(${zoomLevel})`;
 }
 
 function resetZoom() {
-    if (!document.getElementById('main-image-preview')) return;
+    const preview = document.getElementById('main-image-preview');
+    const container = document.getElementById('image-preview-container');
+    if (!preview || !container) return;
     zoomLevel = 1;
-    document.getElementById('main-image-preview').style.transform = `scale(${zoomLevel})`;
-    document.getElementById('image-preview-container').scrollTo(0, 0); // Reset scroll
+    preview.style.transform = `scale(${zoomLevel})`;
+    container.scrollTo(0, 0); // Reset scroll
 }
 
 function resetImage() {
@@ -785,12 +842,17 @@ function resetImage() {
 function setTool(tool) {
     currentTool = tool;
     document.querySelectorAll('.image-tool-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.image-tool-btn[data-tool="${tool}"]`).classList.add('active');
+    
+    const activeBtn = document.querySelector(`.image-tool-btn[data-tool="${tool}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+    
     renderToolControls(tool);
 }
 
 function renderToolControls(tool) {
     const controls = document.getElementById('tool-controls');
+    if (!controls) return;
+    
     controls.innerHTML = '';
     let html = '';
 
@@ -930,6 +992,8 @@ function addToRecentFiles(filename, size) {
 
 function renderRecentFiles() {
     const container = document.getElementById('recent-files');
+    if (!container) return;
+    
     container.innerHTML = '';
     
     if (recentFiles.length === 0) {
@@ -952,8 +1016,12 @@ function renderRecentFiles() {
 // --- Settings & Storage Functions (Enhanced) ---
 
 function initializeSettings() {
-    document.getElementById('dark-mode-toggle').addEventListener('change', toggleTheme);
-    document.getElementById('clear-storage').addEventListener('click', () => {
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const clearStorageBtn = document.getElementById('clear-storage');
+
+    if (darkModeToggle) darkModeToggle.addEventListener('change', toggleTheme);
+    
+    if (clearStorageBtn) clearStorageBtn.addEventListener('click', () => {
         if (confirm('Are you sure you want to clear ALL local data? This action cannot be undone.')) {
             localStorage.clear();
             showNotification('All local data cleared', 'info');
@@ -992,23 +1060,31 @@ function updateStorageInfo() {
     }
 
     // Update breakdown values (New Feature)
-    document.getElementById('storage-notes-value').textContent = formatFileSize(notesSize);
-    document.getElementById('storage-image-value').textContent = formatFileSize(recentsSize);
-    document.getElementById('storage-settings-value').textContent = formatFileSize(settingsSize);
+    const storageNotes = document.getElementById('storage-notes-value');
+    const storageImage = document.getElementById('storage-image-value');
+    const storageSettings = document.getElementById('storage-settings-value');
+    const storageUsed = document.getElementById('storage-used');
+    const storageBar = document.getElementById('storage-bar');
+
+    if (storageNotes) storageNotes.textContent = formatFileSize(notesSize);
+    if (storageImage) storageImage.textContent = formatFileSize(recentsSize);
+    if (storageSettings) storageSettings.textContent = formatFileSize(settingsSize);
 
     // Update total bar
-    document.getElementById('storage-used').textContent = formatFileSize(totalSize);
+    if (storageUsed) storageUsed.textContent = formatFileSize(totalSize);
     const maxStorage = 5 * 1024 * 1024; // 5 MB soft limit
     const percentage = Math.min(100, (totalSize / maxStorage) * 100);
-    document.getElementById('storage-bar').style.width = `${percentage}%`;
     
-    // Show a warning if storage is high
-    if (percentage > 80) {
-        document.getElementById('storage-bar').classList.add('bg-red-500');
-        showNotification('Warning: Local Storage usage is high.', 'error');
-    } else {
-        document.getElementById('storage-bar').classList.remove('bg-red-500');
-        document.getElementById('storage-bar').style.backgroundColor = `var(--color-accent-600)`;
+    if (storageBar) {
+        storageBar.style.width = `${percentage}%`;
+        
+        // Show a warning if storage is high
+        if (percentage > 80) {
+            storageBar.classList.add('bg-red-500');
+            showNotification('Warning: Local Storage usage is high.', 'error');
+        } else {
+            storageBar.classList.remove('bg-red-500');
+            storageBar.style.backgroundColor = `var(--color-accent-600)`;
+        }
     }
 }
-
