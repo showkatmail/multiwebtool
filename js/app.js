@@ -523,7 +523,7 @@ function showToolControls(tool) {
             break;
         // Add other tool controls as needed
         default:
-            controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust the settings for this tool.</p>';
+            controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust settings for this tool.</p>';
     }
 }
 
@@ -557,9 +557,14 @@ function showThumbnailControls(container) {
                     <span>High Quality</span>
                 </div>
             </div>
-            <button id="generate-thumbnail" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Generate Thumbnail
-            </button>
+            <div class="flex space-x-2">
+                <button id="generate-thumbnail" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                    Generate Thumbnail
+                </button>
+                <button id="download-thumbnail" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
+            </div>
         </div>
     `;
     
@@ -593,6 +598,13 @@ function showThumbnailControls(container) {
         
         if (width && height && currentImageData) {
             generateThumbnail(width, height, quality);
+        }
+    });
+    
+    document.getElementById('download-thumbnail').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), `thumbnail_${currentImageData.name}`);
+            showNotification('Thumbnail downloaded successfully', 'success');
         }
     });
 }
@@ -671,9 +683,14 @@ function showResizeControls(container) {
                     <span>Maintain aspect ratio</span>
                 </label>
             </div>
-            <button id="apply-resize" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Apply Resize
-            </button>
+            <div class="flex space-x-2">
+                <button id="apply-resize" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                    Apply Resize
+                </button>
+                <button id="download-resized" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
+            </div>
         </div>
     `;
     
@@ -703,6 +720,13 @@ function showResizeControls(container) {
             resizeImage(width, height);
         }
     });
+    
+    document.getElementById('download-resized').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), `resized_${currentImageData.name}`);
+            showNotification('Resized image downloaded successfully', 'success');
+        }
+    });
 }
 
 // Show compress controls
@@ -723,9 +747,14 @@ function showCompressControls(container) {
                 <p>Original Size: ${currentImageData ? formatFileSize(currentImageData.size) : 'N/A'}</p>
                 <p>Estimated New Size: <span id="estimated-size">Calculating...</span></p>
             </div>
-            <button id="apply-compress" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Apply Compression
-            </button>
+            <div class="flex space-x-2">
+                <button id="apply-compress" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                    Apply Compression
+                </button>
+                <button id="download-compressed" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
+            </div>
         </div>
     `;
     
@@ -742,6 +771,13 @@ function showCompressControls(container) {
     document.getElementById('apply-compress').addEventListener('click', function() {
         const quality = parseInt(document.getElementById('compress-quality').value) / 100;
         compressImage(quality);
+    });
+    
+    document.getElementById('download-compressed').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), `compressed_${currentImageData.name}`);
+            showNotification('Compressed image downloaded successfully', 'success');
+        }
     });
 }
 
@@ -839,9 +875,14 @@ function showWatermarkControls(container) {
                     <input type="range" id="watermark-image-opacity" min="0" max="1" step="0.1" value="0.5" class="w-full">
                 </div>
             </div>
-            <button id="apply-watermark" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Apply Watermark
-            </button>
+            <div class="flex space-x-2">
+                <button id="apply-watermark" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                    Apply Watermark
+                </button>
+                <button id="download-watermarked" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
+            </div>
         </div>
     `;
     
@@ -883,6 +924,13 @@ function showWatermarkControls(container) {
                 };
                 reader.readAsDataURL(watermarkImage);
             }
+        }
+    });
+    
+    document.getElementById('download-watermarked').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), `watermarked_${currentImageData.name}`);
+            showNotification('Watermarked image downloaded successfully', 'success');
         }
     });
 }
@@ -929,6 +977,9 @@ function showFilterControls(container) {
                 <button id="reset-filters" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Reset Filters
                 </button>
+                <button id="download-filtered" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
             </div>
         </div>
     `;
@@ -971,6 +1022,13 @@ function showFilterControls(container) {
             activeFilters = [];
         }
     });
+    
+    document.getElementById('download-filtered').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), `filtered_${currentImageData.name}`);
+            showNotification('Filtered image downloaded successfully', 'success');
+        }
+    });
 }
 
 // Show metadata controls
@@ -1000,9 +1058,12 @@ function showMetadataControls(container) {
                     </div>
                 ` : '<p>No image selected</p>'}
             </div>
-            <div class="mt-4">
+            <div class="flex space-x-2 mt-4">
                 <button id="remove-metadata" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
                     Remove Metadata
+                </button>
+                <button id="download-current" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
                 </button>
             </div>
         </div>
@@ -1011,6 +1072,13 @@ function showMetadataControls(container) {
     document.getElementById('remove-metadata').addEventListener('click', function() {
         if (currentImageData) {
             removeMetadata();
+        }
+    });
+    
+    document.getElementById('download-current').addEventListener('click', function() {
+        if (currentImageData) {
+            downloadBlob(dataURLtoBlob(currentImageData.url), currentImageData.name);
+            showNotification('Image downloaded successfully', 'success');
         }
     });
 }
@@ -1039,15 +1107,26 @@ function showMergeControls(container) {
             <div id="merge-preview" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg min-h-[100px] flex items-center justify-center">
                 <p class="text-gray-500">Select images to preview</p>
             </div>
-            <button id="merge-images-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors" disabled>
-                Merge Images
-            </button>
+            <div class="flex space-x-2">
+                <button id="merge-images-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors" disabled>
+                    Merge Images
+                </button>
+                <button id="download-merged" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors" disabled>
+                    Download
+                </button>
+            </div>
         </div>
     `;
     
     // Add event listeners
     document.getElementById('merge-images').addEventListener('change', handleMergeImageSelection);
     document.getElementById('merge-images-btn').addEventListener('click', mergeSelectedImages);
+    document.getElementById('download-merged').addEventListener('click', function() {
+        if (mergedImageData) {
+            downloadBlob(dataURLtoBlob(mergedImageData.url), `merged_${mergedImageData.name}`);
+            showNotification('Merged image downloaded successfully', 'success');
+        }
+    });
 }
 
 // Handle merge image selection
@@ -1193,7 +1272,7 @@ function mergeSelectedImages() {
     setTimeout(() => {
         canvas.toBlob(function(blob) {
             const url = URL.createObjectURL(blob);
-            currentImageData = {
+            mergedImageData = {
                 url: url,
                 name: 'merged-image.jpg',
                 size: blob.size,
@@ -1202,13 +1281,16 @@ function mergeSelectedImages() {
                 height: canvas.height
             };
             
-            originalImageData = {...currentImageData};
+            currentImageData = {...mergedImageData};
             displayImage(url);
             addToImageHistory();
             showNotification('Images merged successfully', 'success');
             
             // Show reset button
             document.getElementById('reset-image').classList.remove('hidden');
+            
+            // Enable download button
+            document.getElementById('download-merged').disabled = false;
         }, 'image/jpeg', 0.9);
     }, 500);
 }
@@ -2222,3 +2304,18 @@ function showNotification(message, type = 'info') {
 // Help modal
 document.getElementById('help-toggle').addEventListener('click', toggleHelpModal);
 document.getElementById('close-help').addEventListener('click', toggleHelpModal);
+
+// Helper function to convert data URL to blob
+function dataURLtoBlob(dataURL) {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new Blob([u8arr], { type: mime });
+}
