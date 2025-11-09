@@ -135,6 +135,9 @@ function saveCurrentWork() {
     } else if (tabName === 'image-tools' && currentImageData) {
         addToRecentFiles(currentImageData);
         showNotification('Image saved to recent files', 'success');
+    } else if (tabName === 'qr-generator') {
+        // QR codes are generated on-demand, no need to save
+        showNotification('QR codes are generated on-demand', 'info');
     }
 }
 
@@ -143,17 +146,46 @@ function initializeTabs() {
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabPanels = document.querySelectorAll('.tab-panel');
     
+    // First, hide all panels
+    tabPanels.forEach(panel => {
+        panel.classList.add('hidden');
+    });
+    
+    // Set all tabs to inactive state
+    tabButtons.forEach(btn => {
+        btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
+        btn.classList.add('text-gray-600', 'dark:text-gray-400');
+    });
+    
+    // Now specifically activate the Image Tools tab
+    const imageToolsTab = document.querySelector('.tab-btn[data-tab="image-tools"]');
+    const imageToolsPanel = document.getElementById('image-tools-tab');
+    
+    if (imageToolsTab && imageToolsPanel) {
+        // Activate the tab button
+        imageToolsTab.classList.remove('text-gray-600', 'dark:text-gray-400');
+        imageToolsTab.classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
+        
+        // Show the panel
+        imageToolsPanel.classList.remove('hidden');
+    }
+    
+    // Add click event listeners to all tabs
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetTab = button.getAttribute('data-tab');
             
+            // Update button styles
             tabButtons.forEach(btn => {
                 btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
                 btn.classList.add('text-gray-600', 'dark:text-gray-400');
             });
             
+            // Activate clicked button
+            button.classList.remove('text-gray-600', 'dark:text-gray-400');
             button.classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
             
+            // Update panel visibility
             tabPanels.forEach(panel => {
                 panel.classList.add('hidden');
             });
@@ -161,6 +193,11 @@ function initializeTabs() {
             const targetPanel = document.getElementById(`${targetTab}-tab`);
             if (targetPanel) {
                 targetPanel.classList.remove('hidden');
+                
+                // Initialize QR generator if QR tab is selected
+                if (targetTab === 'qr-generator') {
+                    initializeQRCodeGenerator();
+                }
             }
         });
     });
@@ -382,10 +419,15 @@ function downloadBlob(blob, filename) {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    a.style.display = 'none'; // Hide the link
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    
+    // Clean up
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 100);
 }
 
 // --- Image Tool Functions ---
@@ -412,11 +454,13 @@ function initializeImageTools() {
     const zoomOutBtn = document.getElementById('zoom-out');
     const zoomFitBtn = document.getElementById('zoom-fit');
     const resetImageBtn = document.getElementById('reset-image');
+    const clearScreenBtn = document.getElementById('clear-screen');
     
     if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomImage(1.2));
     if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomImage(0.8));
     if (zoomFitBtn) zoomFitBtn.addEventListener('click', resetZoom);
     if (resetImageBtn) resetImageBtn.addEventListener('click', resetImage);
+    if (clearScreenBtn) clearScreenBtn.addEventListener('click', clearScreen);
     
     // Drag and drop
     setupDragAndDrop();
@@ -446,8 +490,12 @@ function handleImageUpload(e) {
                 addToRecentFiles(currentImageData);
                 resetImageHistory();
                 
-                // Show reset button
+                // Show both buttons when image is loaded
                 document.getElementById('reset-image').classList.remove('hidden');
+                const clearScreenBtn = document.getElementById('clear-screen');
+                if (clearScreenBtn) {
+                    clearScreenBtn.classList.remove('hidden');
+                }
                 
                 // Update upload prompt
                 document.getElementById('upload-prompt').textContent = file.name;
@@ -2030,6 +2078,33 @@ function removeMetadata() {
     img.src = currentImageData.url;
 }
 
+// Clear screen function
+function clearScreen() {
+    const container = document.getElementById('image-preview-container');
+    container.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center">
+                <i class="fas fa-image text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                <p id="upload-prompt" class="text-gray-500 dark:text-gray-400">No image loaded</p>
+            </div>
+        </div>
+    `;
+    
+    // Reset image data but keep original for potential reset
+    currentImageData = null;
+    
+    // Hide reset button since no image is loaded
+    document.getElementById('reset-image').classList.add('hidden');
+    
+    // Clear tool controls
+    const controlsContainer = document.getElementById('tool-controls');
+    if (controlsContainer) {
+        controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust settings for this tool.</p>';
+    }
+    
+    showNotification('Screen cleared', 'info');
+}
+
 // Zoom functions
 function zoomImage(factor) {
     zoomLevel *= factor;
@@ -2044,7 +2119,7 @@ function zoomImage(factor) {
 function resetZoom() {
     zoomLevel = 1;
     const previewImage = document.getElementById('preview-image');
-    if (previewImage) {
+        if (previewImage) {
         previewImage.style.transform = `scale(${zoomLevel})`;
     }
 }
@@ -2057,6 +2132,13 @@ function resetImage() {
         resetZoom();
         resetImageHistory();
         showNotification('Image reset to original', 'info');
+        
+        // Show both buttons when image is loaded
+        document.getElementById('reset-image').classList.remove('hidden');
+        const clearScreenBtn = document.getElementById('clear-screen');
+        if (clearScreenBtn) {
+            clearScreenBtn.classList.remove('hidden');
+        }
     }
 }
 
@@ -2156,8 +2238,12 @@ function renderRecentFiles() {
             resetZoom();
             resetImageHistory();
             
-            // Show reset button
+            // Show both buttons when image is loaded
             document.getElementById('reset-image').classList.remove('hidden');
+            const clearScreenBtn = document.getElementById('clear-screen');
+            if (clearScreenBtn) {
+                clearScreenBtn.classList.remove('hidden');
+            }
             
             // Update upload prompt
             document.getElementById('upload-prompt').textContent = file.name;
@@ -2305,17 +2391,57 @@ function showNotification(message, type = 'info') {
 document.getElementById('help-toggle').addEventListener('click', toggleHelpModal);
 document.getElementById('close-help').addEventListener('click', toggleHelpModal);
 
-// Helper function to convert data URL to blob
+// Helper function to convert data URL to blob - FIXED VERSION
 function dataURLtoBlob(dataURL) {
-    const arr = dataURL.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    
-    while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
+    try {
+        // Check if dataURL is valid
+        if (!dataURL || typeof dataURL !== 'string') {
+            console.error('Invalid data URL: not a string or empty');
+            return new Blob([], { type: 'image/jpeg' });
+        }
+        
+        // Check if it's a data URL
+        if (!dataURL.startsWith('data:')) {
+            console.error('Invalid data URL: does not start with "data:"');
+            return new Blob([], { type: 'image/jpeg' });
+        }
+        
+        const arr = dataURL.split(',');
+        
+        // Check if split was successful
+        if (arr.length < 2) {
+            console.error('Invalid data URL: could not split properly');
+            return new Blob([], { type: 'image/jpeg' });
+        }
+        
+        const match = arr[0].match(/:(.*?);/);
+        
+        // Check if match was successful
+        if (!match || match.length < 2) {
+            console.error('Invalid data URL format: could not extract MIME type');
+            return new Blob([], { type: 'image/jpeg' });
+        }
+        
+        const mime = match[1];
+        
+        // Check if we have the data part
+        if (!arr[1]) {
+            console.error('Invalid data URL: missing data part');
+            return new Blob([], { type: mime });
+        }
+        
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        return new Blob([u8arr], { type: mime });
+    } catch (error) {
+        console.error('Error converting data URL to blob:', error);
+        // Return a default blob or handle the error appropriately
+        return new Blob([], { type: 'image/jpeg' });
     }
-    
-    return new Blob([u8arr], { type: mime });
 }
