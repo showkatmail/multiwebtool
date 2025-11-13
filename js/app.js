@@ -739,7 +739,7 @@ function applyCrop() {
         }
         
         showNotification('Image cropped successfully', 'success');
-    }, currentImageData.type);
+    }, 'image/jpeg', 0.9);
 }
 
 // Cancel crop
@@ -784,10 +784,10 @@ function downloadCroppedImage() {
         // Download the cropped image
         const originalName = currentImageData ? currentImageData.name : 'image';
         const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-        downloadBlob(blob, `cropped_${nameWithoutExt}.jpg`);
+        downloadBlob(blob, `cropped_${nameWithoutExt}.jpeg`);
         
         showNotification('Cropped image downloaded successfully', 'success');
-    }, 'image/jpeg');
+    }, 'image/jpeg', 0.9);
 }
 
 // Show thumbnail generator controls
@@ -866,8 +866,14 @@ function showThumbnailControls(container) {
     
     document.getElementById('download-thumbnail').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), `thumbnail_${currentImageData.name}`);
-            showNotification('Thumbnail downloaded successfully', 'success');
+            // Re-generate thumbnail to get the blob
+            const width = parseInt(document.getElementById('thumb-width').value);
+            const height = parseInt(document.getElementById('thumb-height').value);
+            const quality = parseInt(document.getElementById('thumb-quality').value) / 100;
+            
+            if (width && height && currentImageData) {
+                generateThumbnailForDownload(width, height, quality);
+            }
         }
     });
 }
@@ -919,6 +925,51 @@ function generateThumbnail(width, height, quality) {
             displayImage(url);
             addToImageHistory();
             showNotification('Thumbnail generated successfully', 'success');
+        }, 'image/jpeg', quality);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Generate thumbnail for download (FIXED)
+function generateThumbnailForDownload(width, height, quality) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Calculate dimensions to maintain aspect ratio
+        let drawWidth = width;
+        let drawHeight = height;
+        const aspectRatio = img.width / img.height;
+        
+        if (aspectRatio > width / height) {
+            drawHeight = width / aspectRatio;
+        } else {
+            drawWidth = height * aspectRatio;
+        }
+        
+        // Center the image
+        const x = (width - drawWidth) / 2;
+        const y = (height - drawHeight) / 2;
+        
+        // Clear canvas with white background
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Draw image
+        ctx.drawImage(img, x, y, drawWidth, drawHeight);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `thumbnail_${nameWithoutExt}.jpeg`);
+            showNotification('Thumbnail downloaded successfully', 'success');
         }, 'image/jpeg', quality);
     };
     
@@ -986,10 +1037,71 @@ function showResizeControls(container) {
     
     document.getElementById('download-resized').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), `resized_${currentImageData.name}`);
-            showNotification('Resized image downloaded successfully', 'success');
+            // Re-generate resized image to get the blob
+            const width = parseInt(document.getElementById('resize-width').value);
+            const height = parseInt(document.getElementById('resize-height').value);
+            
+            if (width && height && currentImageData) {
+                resizeImageForDownload(width, height);
+            }
         }
     });
+}
+
+// Image manipulation functions
+function resizeImage(width, height) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            currentImageData = {
+                ...currentImageData,
+                url: url,
+                width: width,
+                height: height,
+                size: blob.size
+            };
+            
+            displayImage(url);
+            addToImageHistory();
+            showNotification('Image resized successfully', 'success');
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Resize image for download
+function resizeImageForDownload(width, height) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `resized_${nameWithoutExt}.jpeg`);
+            showNotification('Resized image downloaded successfully', 'success');
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = currentImageData.url;
 }
 
 // Show compress controls
@@ -1038,10 +1150,64 @@ function showCompressControls(container) {
     
     document.getElementById('download-compressed').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), `compressed_${currentImageData.name}`);
-            showNotification('Compressed image downloaded successfully', 'success');
+            // Re-generate compressed image to get the blob
+            const quality = parseInt(document.getElementById('compress-quality').value) / 100;
+            compressImageForDownload(quality);
         }
     });
+}
+
+function compressImage(quality) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            currentImageData = {
+                ...currentImageData,
+                url: url,
+                size: blob.size
+            };
+            
+            displayImage(url);
+            addToImageHistory();
+            showNotification(`Image compressed to ${formatFileSize(blob.size)}`, 'success');
+        }, 'image/jpeg', quality);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Compress image for download (FIXED)
+function compressImageForDownload(quality) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `compressed_${nameWithoutExt}.jpeg`);
+            showNotification('Compressed image downloaded successfully', 'success');
+        }, 'image/jpeg', quality);
+    };
+    
+    img.src = currentImageData.url;
 }
 
 // Show convert controls
@@ -1192,8 +1358,32 @@ function showWatermarkControls(container) {
     
     document.getElementById('download-watermarked').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), `watermarked_${currentImageData.name}`);
-            showNotification('Watermarked image downloaded successfully', 'success');
+            // Re-generate watermarked image to get the blob
+            const watermarkType = document.querySelector('input[name="watermark-type"]:checked').value;
+            
+            if (watermarkType === 'text') {
+                const text = document.getElementById('watermark-text').value;
+                const fontSize = document.getElementById('watermark-font-size').value;
+                const color = document.getElementById('watermark-color').value;
+                const position = document.getElementById('watermark-position').value;
+                const opacity = document.getElementById('watermark-opacity').value;
+                
+                if (text) {
+                    addTextWatermarkForDownload(text, fontSize, color, position, opacity);
+                }
+            } else {
+                const watermarkImage = document.getElementById('watermark-image').files[0];
+                const position = document.getElementById('watermark-image-position').value;
+                const opacity = document.getElementById('watermark-image-opacity').value;
+                
+                if (watermarkImage) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        addImageWatermarkForDownload(e.target.result, position, opacity);
+                    };
+                    reader.readAsDataURL(watermarkImage);
+                }
+            }
         }
     });
 }
@@ -1288,8 +1478,12 @@ function showFilterControls(container) {
     
     document.getElementById('download-filtered').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), `filtered_${currentImageData.name}`);
-            showNotification('Filtered image downloaded successfully', 'success');
+            // Re-generate filtered image to get the blob
+            if (activeFilters.length > 0) {
+                const filter = activeFilters[0];
+                const intensity = document.getElementById('filter-intensity').value / 100;
+                applyFilterForDownload(filter, intensity);
+            }
         }
     });
 }
@@ -1340,8 +1534,8 @@ function showMetadataControls(container) {
     
     document.getElementById('download-current').addEventListener('click', function() {
         if (currentImageData) {
-            downloadBlob(dataURLtoBlob(currentImageData.url), currentImageData.name);
-            showNotification('Image downloaded successfully', 'success');
+            // Re-generate image without metadata to get the blob
+            removeMetadataForDownload();
         }
     });
 }
@@ -1384,12 +1578,7 @@ function showMergeControls(container) {
     // Add event listeners
     document.getElementById('merge-images').addEventListener('change', handleMergeImageSelection);
     document.getElementById('merge-images-btn').addEventListener('click', mergeSelectedImages);
-    document.getElementById('download-merged').addEventListener('click', function() {
-        if (mergedImageData) {
-            downloadBlob(dataURLtoBlob(mergedImageData.url), `merged_${mergedImageData.name}`);
-            showNotification('Merged image downloaded successfully', 'success');
-        }
-    });
+    document.getElementById('download-merged').addEventListener('click', downloadMergedImage);
 }
 
 // Handle merge image selection
@@ -1537,7 +1726,7 @@ function mergeSelectedImages() {
             const url = URL.createObjectURL(blob);
             mergedImageData = {
                 url: url,
-                name: 'merged-image.jpg',
+                name: 'merged-image.jpeg',
                 size: blob.size,
                 type: 'image/jpeg',
                 width: canvas.width,
@@ -1554,6 +1743,103 @@ function mergeSelectedImages() {
             
             // Enable download button
             document.getElementById('download-merged').disabled = false;
+        }, 'image/jpeg', 0.9);
+    }, 500);
+}
+
+// Download merged image (FIXED)
+function downloadMergedImage() {
+    if (!mergedImageData && !selectedMergeImages.length) {
+        showNotification('No merged image to download', 'error');
+        return;
+    }
+    
+    const direction = document.getElementById('merge-direction').value;
+    const spacing = parseInt(document.getElementById('merge-spacing').value) || 0;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Calculate canvas dimensions
+    let totalWidth = 0;
+    let totalHeight = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    
+    selectedMergeImages.forEach(img => {
+        maxWidth = Math.max(maxWidth, img.width);
+        maxHeight = Math.max(maxHeight, img.height);
+        totalWidth += img.width;
+        totalHeight += img.height;
+    });
+    
+    if (direction === 'horizontal') {
+        canvas.width = totalWidth + (spacing * (selectedMergeImages.length - 1));
+        canvas.height = maxHeight;
+    } else if (direction === 'vertical') {
+        canvas.width = maxWidth;
+        canvas.height = totalHeight + (spacing * (selectedMergeImages.length - 1));
+    } else if (direction === 'grid') {
+        // Limit to 4 images for grid
+        const gridImages = selectedMergeImages.slice(0, 4);
+        canvas.width = (maxWidth * 2) + spacing;
+        canvas.height = (maxHeight * 2) + spacing;
+    }
+    
+    // Fill with white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw images
+    let currentX = 0;
+    let currentY = 0;
+    
+    if (direction === 'horizontal') {
+        selectedMergeImages.forEach(imgData => {
+            const img = new Image();
+            img.onload = function() {
+                const y = (canvas.height - img.height) / 2;
+                ctx.drawImage(img, currentX, y);
+                currentX += img.width + spacing;
+            };
+            img.src = imgData.url;
+        });
+    } else if (direction === 'vertical') {
+        selectedMergeImages.forEach(imgData => {
+            const img = new Image();
+            img.onload = function() {
+                const x = (canvas.width - img.width) / 2;
+                ctx.drawImage(img, x, currentY);
+                currentY += img.height + spacing;
+            };
+            img.src = imgData.url;
+        });
+    } else if (direction === 'grid') {
+        const gridImages = selectedMergeImages.slice(0, 4);
+        const positions = [
+            { x: 0, y: 0 },
+            { x: maxWidth + spacing, y: 0 },
+            { x: 0, y: maxHeight + spacing },
+            { x: maxWidth + spacing, y: maxHeight + spacing }
+        ];
+        
+        gridImages.forEach((imgData, index) => {
+            const img = new Image();
+            img.onload = function() {
+                const pos = positions[index];
+                ctx.drawImage(img, pos.x, pos.y);
+            };
+            img.src = imgData.url;
+        });
+    }
+    
+    // Convert to blob after a short delay to ensure all images are drawn
+    setTimeout(() => {
+        canvas.toBlob(function(blob) {
+            const originalName = selectedMergeImages.length > 0 ? selectedMergeImages[0].name : 'merged-image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `merged_${nameWithoutExt}.jpeg`);
+            showNotification('Merged image downloaded successfully', 'success');
         }, 'image/jpeg', 0.9);
     }, 500);
 }
@@ -1816,7 +2102,7 @@ function processBatchResize(imageData, index) {
         
         canvas.toBlob(function(blob) {
             downloadBlob(blob, `resized_${imageData.name}`);
-        }, imageData.type);
+        }, 'image/jpeg', 0.9);
     };
     
     img.src = imageData.url;
@@ -1919,73 +2205,13 @@ function processBatchWatermark(imageData, index) {
         
         canvas.toBlob(function(blob) {
             downloadBlob(blob, `watermarked_${imageData.name}`);
-        }, imageData.type);
+        }, 'image/jpeg', 0.9);
     };
     
     img.src = imageData.url;
 }
 
 // Image manipulation functions
-function resizeImage(width, height) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                width: width,
-                height: height,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Image resized successfully', 'success');
-        }, currentImageData.type);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-function compressImage(quality) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification(`Image compressed to ${formatFileSize(blob.size)}`, 'success');
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = currentImageData.url;
-}
-
 function convertImage(format) {
     if (!currentImageData) return;
     
@@ -2068,7 +2294,68 @@ function addTextWatermark(text, fontSize, color, position, opacity) {
             displayImage(url);
             addToImageHistory();
             showNotification('Watermark added successfully', 'success');
-        }, currentImageData.type);
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Add text watermark for download (FIXED)
+function addTextWatermarkForDownload(text, fontSize, color, position, opacity) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        // Set watermark properties
+        ctx.font = `${fontSize}px Arial`;
+        ctx.fillStyle = color;
+        ctx.globalAlpha = opacity;
+        
+        // Calculate position
+        let x, y;
+        const padding = 20;
+        const textMetrics = ctx.measureText(text);
+        const textWidth = textMetrics.width;
+        
+        switch(position) {
+            case 'top-left':
+                x = padding;
+                y = padding + parseInt(fontSize);
+                break;
+            case 'top-right':
+                x = canvas.width - textWidth - padding;
+                y = padding + parseInt(fontSize);
+                break;
+            case 'bottom-left':
+                x = padding;
+                y = canvas.height - padding;
+                break;
+            case 'bottom-right':
+                x = canvas.width - textWidth - padding;
+                y = canvas.height - padding;
+                break;
+            case 'center':
+                x = (canvas.width - textWidth) / 2;
+                y = canvas.height / 2;
+                break;
+        }
+        
+        // Draw watermark
+        ctx.fillText(text, x, y);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `watermarked_${nameWithoutExt}.jpeg`);
+            showNotification('Watermarked image downloaded successfully', 'success');
+        }, 'image/jpeg', 0.9);
     };
     
     img.src = currentImageData.url;
@@ -2137,7 +2424,76 @@ function addImageWatermark(watermarkUrl, position, opacity) {
                 displayImage(url);
                 addToImageHistory();
                 showNotification('Watermark added successfully', 'success');
-            }, currentImageData.type);
+            }, 'image/jpeg', 0.9);
+        }
+    }
+    
+    img.onload = checkImagesLoaded;
+    watermark.onload = checkImagesLoaded;
+    
+    img.src = currentImageData.url;
+    watermark.src = watermarkUrl;
+}
+
+// Add image watermark for download (FIXED)
+function addImageWatermarkForDownload(watermarkUrl, position, opacity) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    const watermark = new Image();
+    
+    let loadedImages = 0;
+    
+    function checkImagesLoaded() {
+        loadedImages++;
+        if (loadedImages === 2) {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            // Set watermark opacity
+            ctx.globalAlpha = opacity;
+            
+            // Calculate position
+            let x, y;
+            const padding = 20;
+            const watermarkWidth = watermark.width;
+            const watermarkHeight = watermark.height;
+            
+            switch(position) {
+                case 'top-left':
+                    x = padding;
+                    y = padding;
+                    break;
+                case 'top-right':
+                    x = canvas.width - watermarkWidth - padding;
+                    y = padding;
+                    break;
+                case 'bottom-left':
+                    x = padding;
+                    y = canvas.height - watermarkHeight - padding;
+                    break;
+                case 'bottom-right':
+                    x = canvas.width - watermarkWidth - padding;
+                    y = canvas.height - watermarkHeight - padding;
+                    break;
+                case 'center':
+                    x = (canvas.width - watermarkWidth) / 2;
+                    y = (canvas.height - watermarkHeight) / 2;
+                    break;
+            }
+            
+            // Draw watermark
+            ctx.drawImage(watermark, x, y, watermarkWidth, watermarkHeight);
+            
+            canvas.toBlob(function(blob) {
+                const originalName = currentImageData ? currentImageData.name : 'image';
+                const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+                downloadBlob(blob, `watermarked_${nameWithoutExt}.jpeg`);
+                showNotification('Watermarked image downloaded successfully', 'success');
+            }, 'image/jpeg', 0.9);
         }
     }
     
@@ -2258,7 +2614,118 @@ function applyFilter(filter, intensity) {
             displayImage(url);
             addToImageHistory();
             showNotification(`${filter.charAt(0).toUpperCase() + filter.slice(1)} filter applied`, 'success');
-        }, currentImageData.type);
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Apply filter for download (FIXED)
+function applyFilterForDownload(filter, intensity) {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Apply filter
+        switch(filter) {
+            case 'grayscale':
+                for (let i = 0; i < data.length; i += 4) {
+                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                    data[i] = gray;
+                    data[i + 1] = gray;
+                    data[i + 2] = gray;
+                }
+                break;
+            case 'sepia':
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    
+                    data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+                    data[i + 1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+                    data[i + 2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+                }
+                break;
+            case 'invert':
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = 255 - data[i];
+                    data[i + 1] = 255 - data[i + 1];
+                    data[i + 2] = 255 - data[i + 2];
+                }
+                break;
+            case 'blur':
+                // Simple box blur
+                const blurRadius = Math.round(intensity * 10);
+                const tempData = new Uint8ClampedArray(data);
+                
+                for (let y = 0; y < canvas.height; y++) {
+                    for (let x = 0; x < canvas.width; x++) {
+                        let r = 0, g = 0, b = 0, a = 0;
+                        let count = 0;
+                        
+                        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
+                            for (let dx = -blurRadius; dx <= blurRadius; dx++) {
+                                const ny = y + dy;
+                                const nx = x + dx;
+                                
+                                if (ny >= 0 && ny < canvas.height && nx >= 0 && nx < canvas.width) {
+                                    const idx = (ny * canvas.width + nx) * 4;
+                                    r += tempData[idx];
+                                    g += tempData[idx + 1];
+                                    b += tempData[idx + 2];
+                                    a += tempData[idx + 3];
+                                    count++;
+                                }
+                            }
+                        }
+                        
+                        const idx = (y * canvas.width + x) * 4;
+                        data[idx] = r / count;
+                        data[idx + 1] = g / count;
+                        data[idx + 2] = b / count;
+                        data[idx + 3] = a / count;
+                    }
+                }
+                break;
+            case 'brightness':
+                const brightnessFactor = intensity * 2;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.min(255, data[i] * brightnessFactor);
+                    data[i + 1] = Math.min(255, data[i + 1] * brightnessFactor);
+                    data[i + 2] = Math.min(255, data[i + 2] * brightnessFactor);
+                }
+                break;
+            case 'contrast':
+                const contrastFactor = intensity * 2;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.min(255, Math.max(0, (data[i] - 128) * contrastFactor + 128));
+                    data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * contrastFactor + 128));
+                    data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * contrastFactor + 128));
+                }
+                break;
+        }
+        
+        // Put the modified image data back
+        ctx.putImageData(imageData, 0, 0);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `filtered_${nameWithoutExt}.jpeg`);
+            showNotification('Filtered image downloaded successfully', 'success');
+        }, 'image/jpeg', 0.9);
     };
     
     img.src = currentImageData.url;
@@ -2287,7 +2754,31 @@ function removeMetadata() {
             displayImage(url);
             addToImageHistory();
             showNotification('Metadata removed successfully', 'success');
-        }, currentImageData.type);
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Remove metadata for download (FIXED)
+function removeMetadataForDownload() {
+    if (!currentImageData) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData ? currentImageData.name : 'image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `metadata_removed_${nameWithoutExt}.jpeg`);
+            showNotification('Image without metadata downloaded successfully', 'success');
+        }, 'image/jpeg', 0.9);
     };
     
     img.src = currentImageData.url;
@@ -2601,7 +3092,7 @@ function showNotification(message, type = 'info') {
 document.getElementById('help-toggle').addEventListener('click', toggleHelpModal);
 document.getElementById('close-help').addEventListener('click', toggleHelpModal);
 
-// Helper function to convert data URL to blob - FIXED VERSION
+// Helper function to convert data URL to blob
 function dataURLtoBlob(dataURL) {
     try {
         // Check if dataURL is valid
