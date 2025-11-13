@@ -11,6 +11,7 @@ let recentFiles = [];
 let batchImages = [];
 let activeFilters = [];
 let currentTheme = 'light';
+let cropper = null; // Add cropper variable
 
 // Notepad-specific global variables
 let notes = [];
@@ -519,6 +520,13 @@ function displayImage(imageUrl) {
     img.style.transform = `scale(${zoomLevel})`;
     
     container.appendChild(img);
+    
+    // If crop tool is active, initialize cropper
+    if (currentTool === 'crop') {
+        setTimeout(() => {
+            initializeCropper();
+        }, 100);
+    }
 }
 
 // Select a tool
@@ -531,6 +539,12 @@ function selectTool(tool) {
     });
     
     document.getElementById(`${tool}-tool`).classList.add('bg-indigo-100', 'dark:bg-gray-600');
+    
+    // Destroy cropper if it exists and we're switching away from crop tool
+    if (tool !== 'crop' && cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
     
     // Show tool-specific controls
     showToolControls(tool);
@@ -554,6 +568,9 @@ function showToolControls(tool) {
         case 'convert':
             showConvertControls(controlsContainer);
             break;
+        case 'crop':
+            showCropControls(controlsContainer);
+            break;
         case 'watermark':
             showWatermarkControls(controlsContainer);
             break;
@@ -573,6 +590,204 @@ function showToolControls(tool) {
         default:
             controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust settings for this tool.</p>';
     }
+}
+
+// Show crop controls
+function showCropControls(container) {
+    container.innerHTML = `
+        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+            <h3 class="text-lg font-medium mb-4">Crop Image</h3>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Aspect Ratio</label>
+                <select id="crop-aspect-ratio" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                    <option value="free">Free</option>
+                    <option value="1.77">16:9</option>
+                    <option value="1.33">4:3</option>
+                    <option value="1">1:1</option>
+                    <option value="0.75">3:4</option>
+                    <option value="0.56">9:16</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="crop-guide" class="mr-2" checked>
+                    <span>Show Guides</span>
+                </label>
+            </div>
+            <div class="flex space-x-2">
+                <button id="apply-crop" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                    Apply Crop
+                </button>
+                <button id="cancel-crop" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="download-cropped" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    Download
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add event listeners
+    document.getElementById('crop-aspect-ratio').addEventListener('change', updateCropAspectRatio);
+    document.getElementById('crop-guide').addEventListener('change', toggleCropGuides);
+    document.getElementById('apply-crop').addEventListener('click', applyCrop);
+    document.getElementById('cancel-crop').addEventListener('click', cancelCrop);
+    document.getElementById('download-cropped').addEventListener('click', downloadCroppedImage);
+    
+    // Initialize cropper
+    initializeCropper();
+}
+
+// Initialize cropper
+function initializeCropper() {
+    if (!currentImageData) return;
+    
+    const image = document.getElementById('preview-image');
+    if (!image) return;
+    
+    // Destroy existing cropper if it exists
+    if (cropper) {
+        cropper.destroy();
+    }
+    
+    // Create new cropper
+    cropper = new Cropper(image, {
+        aspectRatio: NaN,
+        viewMode: 1,
+        guides: true,
+        center: true,
+        highlight: true,
+        background: true,
+        autoCrop: true,
+        autoCropArea: 0.8,
+        movable: true,
+        rotatable: false,
+        scalable: false,
+        zoomable: true,
+        zoomOnTouch: true,
+        zoomOnWheel: true,
+        cropBoxMovable: true,
+        cropBoxResizable: true,
+        toggleDragModeOnDblclick: false,
+    });
+}
+
+// Update crop aspect ratio
+function updateCropAspectRatio() {
+    if (!cropper) return;
+    
+    const aspectRatio = document.getElementById('crop-aspect-ratio').value;
+    cropper.setAspectRatio(aspectRatio === 'free' ? NaN : parseFloat(aspectRatio));
+}
+
+// Toggle crop guides
+function toggleCropGuides() {
+    if (!cropper) return;
+    
+    const showGuides = document.getElementById('crop-guide').checked;
+    cropper.setOption('guides', showGuides);
+    cropper.setOption('center', showGuides);
+    cropper.setOption('highlight', showGuides);
+}
+
+// Apply crop
+function applyCrop() {
+    if (!cropper) return;
+    
+    // Get cropped canvas
+    const canvas = cropper.getCroppedCanvas({
+        maxWidth: 4096,
+        maxHeight: 4096,
+        fillColor: '#fff',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+    });
+    
+    if (!canvas) {
+        showNotification('Failed to crop image', 'error');
+        return;
+    }
+    
+    // Convert canvas to blob
+    canvas.toBlob(function(blob) {
+        if (!blob) {
+            showNotification('Failed to process cropped image', 'error');
+            return;
+        }
+        
+        // Create URL for the blob
+        const url = URL.createObjectURL(blob);
+        
+        // Update current image data
+        currentImageData = {
+            ...currentImageData,
+            url: url,
+            width: canvas.width,
+            height: canvas.height,
+            size: blob.size
+        };
+        
+        // Display the cropped image
+        displayImage(url);
+        addToImageHistory();
+        
+        // Destroy cropper
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+        
+        showNotification('Image cropped successfully', 'success');
+    }, currentImageData.type);
+}
+
+// Cancel crop
+function cancelCrop() {
+    if (cropper) {
+        cropper.destroy();
+        cropper = null;
+    }
+    
+    // Reset to original image
+    if (originalImageData) {
+        currentImageData = {...originalImageData};
+        displayImage(originalImageData.url);
+    }
+}
+
+// Download cropped image
+function downloadCroppedImage() {
+    if (!cropper) return;
+    
+    // Get cropped canvas
+    const canvas = cropper.getCroppedCanvas({
+        maxWidth: 4096,
+        maxHeight: 4096,
+        fillColor: '#fff',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+    });
+    
+    if (!canvas) {
+        showNotification('Failed to crop image', 'error');
+        return;
+    }
+    
+    // Convert canvas to blob
+    canvas.toBlob(function(blob) {
+        if (!blob) {
+            showNotification('Failed to process cropped image', 'error');
+            return;
+        }
+        
+        // Download the cropped image
+        const originalName = currentImageData ? currentImageData.name : 'image';
+        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+        downloadBlob(blob, `cropped_${nameWithoutExt}.jpg`);
+        
+        showNotification('Cropped image downloaded successfully', 'success');
+    }, 'image/jpeg');
 }
 
 // Show thumbnail generator controls
@@ -2119,7 +2334,7 @@ function zoomImage(factor) {
 function resetZoom() {
     zoomLevel = 1;
     const previewImage = document.getElementById('preview-image');
-        if (previewImage) {
+    if (previewImage) {
         previewImage.style.transform = `scale(${zoomLevel})`;
     }
 }
@@ -2169,11 +2384,12 @@ function loadRecentFiles() {
     if (savedFiles) {
         try {
             recentFiles = JSON.parse(savedFiles);
-            renderRecentFiles();
         } catch (e) {
             recentFiles = [];
         }
     }
+    
+    renderRecentFiles();
 }
 
 function addToRecentFiles(imageData) {
@@ -2286,10 +2502,6 @@ function setupDragAndDrop() {
         dropZone.addEventListener(eventName, highlight, false);
     });
     
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-    
     function highlight() {
         dropZone.classList.add('border-indigo-500');
     }
@@ -2345,6 +2557,7 @@ function updateStorageInfo() {
             totalSize += (new Blob([localStorage[key]])).size;
         }
     }
+    
     document.getElementById('storage-used').textContent = formatFileSize(totalSize);
     const maxStorage = 5 * 1024 * 1024;
     const percentage = Math.min(100, (totalSize / maxStorage) * 100);
@@ -2378,12 +2591,9 @@ function showNotification(message, type = 'info') {
     }, 10);
     
     setTimeout(() => {
-        notification.classList.add('translate-x-full');
-        setTimeout(() => {
-            if (container.contains(notification)) {
-                container.removeChild(notification);
-            }
-        }, 300);
+        if (container.contains(notification)) {
+            container.removeChild(notification);
+        }
     }, 3000);
 }
 
