@@ -615,14 +615,11 @@ function showCropControls(container) {
                 </label>
             </div>
             <div class="flex space-x-2">
-                <button id="apply-crop" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Apply Crop
-                </button>
                 <button id="cancel-crop" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Cancel
                 </button>
                 <button id="download-cropped" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
+                    Crop & Download
                 </button>
             </div>
         </div>
@@ -631,7 +628,6 @@ function showCropControls(container) {
     // Add event listeners
     document.getElementById('crop-aspect-ratio').addEventListener('change', updateCropAspectRatio);
     document.getElementById('crop-guide').addEventListener('change', toggleCropGuides);
-    document.getElementById('apply-crop').addEventListener('click', applyCrop);
     document.getElementById('cancel-crop').addEventListener('click', cancelCrop);
     document.getElementById('download-cropped').addEventListener('click', downloadCroppedImage);
     
@@ -689,57 +685,6 @@ function toggleCropGuides() {
     cropper.setOption('guides', showGuides);
     cropper.setOption('center', showGuides);
     cropper.setOption('highlight', showGuides);
-}
-
-// Apply crop
-function applyCrop() {
-    if (!cropper) return;
-    
-    // Get cropped canvas
-    const canvas = cropper.getCroppedCanvas({
-        maxWidth: 4096,
-        maxHeight: 4096,
-        fillColor: '#fff',
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-    });
-    
-    if (!canvas) {
-        showNotification('Failed to crop image', 'error');
-        return;
-    }
-    
-    // Convert canvas to blob
-    canvas.toBlob(function(blob) {
-        if (!blob) {
-            showNotification('Failed to process cropped image', 'error');
-            return;
-        }
-        
-        // Create URL for the blob
-        const url = URL.createObjectURL(blob);
-        
-        // Update current image data
-        currentImageData = {
-            ...currentImageData,
-            url: url,
-            width: canvas.width,
-            height: canvas.height,
-            size: blob.size
-        };
-        
-        // Display the cropped image
-        displayImage(url);
-        addToImageHistory();
-        
-        // Destroy cropper
-        if (cropper) {
-            cropper.destroy();
-            cropper = null;
-        }
-        
-        showNotification('Image cropped successfully', 'success');
-    }, 'image/jpeg', 0.9);
 }
 
 // Cancel crop
