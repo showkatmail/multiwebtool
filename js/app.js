@@ -1,3093 +1,538 @@
-// Global variables
-let currentImageData = null;
-let originalImageData = null;
-let selectedMergeImages = [];
-let mergedImageData = null;
-let currentTool = null;
-let imageHistory = [];
-let historyIndex = -1;
-let zoomLevel = 1;
-let recentFiles = [];
-let batchImages = [];
-let activeFilters = [];
-let currentTheme = 'light';
-let cropper = null; // Add cropper variable
-
-// Notepad-specific global variables
-let notes = [];
-let currentNoteId = null;
-
-// Initialize app
-document.addEventListener('DOMContentLoaded', function() {
-    initializeTheme();
-    initializeTabs();
-    initializeEditor();
-    initializeImageTools();
-    initializeSettings();
-    loadRecentFiles();
-    initializeKeyboardShortcuts();
-    updateStorageInfo();
-});
-
-// Theme Management
-function initializeTheme() {
-    const themeToggle = document.getElementById('theme-toggle');
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    
-    // Check for saved theme preference
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-    
-    themeToggle.addEventListener('click', toggleTheme);
-    darkModeToggle.addEventListener('change', toggleTheme);
-}
-
-function setTheme(theme) {
-    currentTheme = theme;
-    localStorage.setItem('theme', theme);
-    
-    const html = document.documentElement;
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    
-    if (theme === 'dark') {
-        html.classList.add('dark');
-        if (darkModeToggle) darkModeToggle.checked = true;
-    } else {
-        html.classList.remove('dark');
-        if (darkModeToggle) darkModeToggle.checked = false;
-    }
-}
-
-function toggleTheme() {
-    const html = document.documentElement;
-    if (html.classList.contains('dark')) {
-        setTheme('light');
-    } else {
-        setTheme('dark');
-    }
-}
-
-// Keyboard Shortcuts
-function initializeKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        if (e.key === '?' && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            toggleHelpModal();
-            return;
-        }
-        
-        if (e.ctrlKey || e.metaKey) {
-            const activeTabPanel = document.querySelector('.tab-panel:not(.hidden)');
-            if (!activeTabPanel) return;
-            
-            switch(e.key) {
-                case 'd':
-                    e.preventDefault();
-                    toggleTheme();
-                    break;
-                case 's':
-                    e.preventDefault();
-                    saveCurrentWork();
-                    break;
-                case '+':
-                case '=':
-                    if (activeTabPanel.id === 'image-tools-tab') {
-                        e.preventDefault();
-                        if (currentImageData) zoomImage(1.2);
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tool Web App - Enhanced</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- QRCode Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <!-- Cropper.js Library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script>
+        // Tailwind CSS configuration remains here for CDN build process
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'bounce-in': 'bounceIn 0.6s ease-out'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
                     }
-                    break;
-                case '-':
-                     if (activeTabPanel.id === 'image-tools-tab') {
-                        e.preventDefault();
-                        if (currentImageData) zoomImage(0.8);
-                    }
-                    break;
-                case '0':
-                     if (activeTabPanel.id === 'image-tools-tab') {
-                        e.preventDefault();
-                        if (currentImageData) resetZoom();
-                    }
-                    break;
-                case 'r':
-                     if (activeTabPanel.id === 'image-tools-tab') {
-                        e.preventDefault();
-                        if (currentImageData) resetImage();
-                    }
-                    break;
-            }
-        }
-    });
-}
-
-function toggleHelpModal() {
-    const helpModal = document.getElementById('help-modal');
-    if(helpModal) helpModal.classList.toggle('hidden');
-}
-
-function saveCurrentWork() {
-    const activeTab = document.querySelector('.tab-btn.border-indigo-600, .tab-btn.dark\\:border-indigo-400');
-    if (!activeTab) return;
-    
-    const tabName = activeTab.getAttribute('data-tab');
-    
-    if (tabName === 'notepad') {
-        saveNotesToLocal();
-        showNotification('All notes have been saved.', 'success');
-    } else if (tabName === 'image-tools' && currentImageData) {
-        addToRecentFiles(currentImageData);
-        showNotification('Image saved to recent files', 'success');
-    } else if (tabName === 'qr-generator') {
-        // QR codes are generated on-demand, no need to save
-        showNotification('QR codes are generated on-demand', 'info');
-    }
-}
-
-// Tab Management
-function initializeTabs() {
-    const tabButtons = document.querySelectorAll('.tab-btn');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-    
-    // First, hide all panels
-    tabPanels.forEach(panel => {
-        panel.classList.add('hidden');
-    });
-    
-    // Set all tabs to inactive state
-    tabButtons.forEach(btn => {
-        btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
-        btn.classList.add('text-gray-600', 'dark:text-gray-400');
-    });
-    
-    // Now specifically activate the Image Tools tab
-    const imageToolsTab = document.querySelector('.tab-btn[data-tab="image-tools"]');
-    const imageToolsPanel = document.getElementById('image-tools-tab');
-    
-    if (imageToolsTab && imageToolsPanel) {
-        // Activate the tab button
-        imageToolsTab.classList.remove('text-gray-600', 'dark:text-gray-400');
-        imageToolsTab.classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
-        
-        // Show the panel
-        imageToolsPanel.classList.remove('hidden');
-    }
-    
-    // Add click event listeners to all tabs
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const targetTab = button.getAttribute('data-tab');
-            
-            // Update button styles
-            tabButtons.forEach(btn => {
-                btn.classList.remove('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
-                btn.classList.add('text-gray-600', 'dark:text-gray-400');
-            });
-            
-            // Activate clicked button
-            button.classList.remove('text-gray-600', 'dark:text-gray-400');
-            button.classList.add('text-indigo-600', 'dark:text-indigo-400', 'border-b-2', 'border-indigo-600', 'dark:border-indigo-400');
-            
-            // Update panel visibility
-            tabPanels.forEach(panel => {
-                panel.classList.add('hidden');
-            });
-            
-            const targetPanel = document.getElementById(`${targetTab}-tab`);
-            if (targetPanel) {
-                targetPanel.classList.remove('hidden');
-                
-                // Initialize QR generator if QR tab is selected
-                if (targetTab === 'qr-generator') {
-                    initializeQRCodeGenerator();
-                }
-            }
-        });
-    });
-}
-
-// --- Notepad Functions ---
-
-function initializeEditor() {
-    const editor = document.getElementById('editor');
-    
-    // Note Management
-    loadNotesFromLocal();
-    renderNoteSelector();
-    
-    document.getElementById('new-note-btn').addEventListener('click', createNewNote);
-    document.getElementById('delete-note-btn').addEventListener('click', deleteCurrentNote);
-    document.getElementById('note-selector').addEventListener('change', switchNote);
-
-    // Editor Toolbar
-    const editorButtons = document.querySelectorAll('.editor-btn');
-    editorButtons.forEach(button => {
-        button.addEventListener('mousedown', (e) => {
-            e.preventDefault(); 
-            const command = button.getAttribute('data-command');
-            
-            if (command === 'createLink') {
-                const url = prompt('Enter URL:');
-                if (url) {
-                     document.execCommand(command, false, url);
-                }
-            } else {
-                document.execCommand(command, false, null);
-            }
-        });
-    });
-
-    const fontSizeSelect = document.getElementById('font-size');
-    const fontFamilySelect = document.getElementById('font-family');
-    const textColorInput = document.getElementById('text-color');
-    const bgColorInput = document.getElementById('bg-color');
-
-    fontSizeSelect.addEventListener('change', () => {
-        document.execCommand('fontSize', false, fontSizeSelect.value);
-        editor.focus();
-    });
-    
-    fontFamilySelect.addEventListener('change', () => {
-        document.execCommand('fontName', false, fontFamilySelect.value);
-        editor.focus();
-    });
-
-    textColorInput.addEventListener('input', () => {
-        document.execCommand('foreColor', false, textColorInput.value);
-    });
-
-    bgColorInput.addEventListener('input', () => {
-        document.execCommand('hiliteColor', false, bgColorInput.value);
-    });
-
-    // Editor Actions
-    document.getElementById('clear-editor').addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear the content of this note?')) {
-            editor.innerHTML = '';
-            updateCurrentNoteContent(); // Save the cleared content
-        }
-    });
-
-    document.getElementById('word-count').addEventListener('click', () => {
-        updateWordCount();
-        document.getElementById('word-count-modal').classList.remove('hidden');
-    });
-
-    document.getElementById('close-word-count').addEventListener('click', () => {
-        document.getElementById('word-count-modal').classList.add('hidden');
-    });
-    
-    document.getElementById('export-html').addEventListener('click', () => {
-        const htmlContent = editor.innerHTML;
-        const blob = new Blob([htmlContent], { type: 'text/html' });
-        downloadBlob(blob, `note-${currentNoteId}.html`);
-        showNotification('HTML exported successfully', 'success');
-    });
-    
-    document.getElementById('save-local').addEventListener('click', saveCurrentWork);
-
-    document.getElementById('download-text').addEventListener('click', () => {
-        const content = editor.innerText;
-        const blob = new Blob([content], { type: 'text/plain' });
-        downloadBlob(blob, `note-${currentNoteId}.txt`);
-        showNotification('File downloaded successfully', 'success');
-    });
-
-    // Auto-save on input
-    editor.addEventListener('input', updateCurrentNoteContent);
-}
-
-function loadNotesFromLocal() {
-    const savedNotes = localStorage.getItem('multi-tool-notes');
-    if (savedNotes) {
-        try {
-            notes = JSON.parse(savedNotes);
-        } catch (e) {
-            notes = [];
-        }
-    }
-
-    if (!notes || notes.length === 0) {
-        const firstNote = {
-            id: Date.now(),
-            name: 'My First Note',
-            content: 'Welcome to your new notepad! Create more notes using the "New" button.'
-        };
-        notes = [firstNote];
-        saveNotesToLocal();
-    }
-    
-    const lastActiveNoteId = parseInt(localStorage.getItem('last-active-note-id'));
-    const lastActiveNote = notes.find(note => note.id === lastActiveNoteId);
-
-    if (lastActiveNote) {
-        currentNoteId = lastActiveNote.id;
-    } else if (notes.length > 0) {
-        currentNoteId = notes[0].id;
-    }
-
-    const currentNote = notes.find(note => note.id === currentNoteId);
-    if (currentNote) {
-        document.getElementById('editor').innerHTML = currentNote.content;
-    }
-}
-
-function saveNotesToLocal() {
-    localStorage.setItem('multi-tool-notes', JSON.stringify(notes));
-    updateStorageInfo();
-}
-
-function updateCurrentNoteContent() {
-    const currentNote = notes.find(note => note.id === currentNoteId);
-    if (currentNote) {
-        currentNote.content = document.getElementById('editor').innerHTML;
-        saveNotesToLocal();
-    }
-}
-
-function renderNoteSelector() {
-    const noteSelector = document.getElementById('note-selector');
-    noteSelector.innerHTML = '';
-    notes.forEach(note => {
-        const option = document.createElement('option');
-        option.value = note.id;
-        option.textContent = note.name;
-        if (note.id === currentNoteId) {
-            option.selected = true;
-        }
-        noteSelector.appendChild(option);
-    });
-}
-
-function switchNote() {
-    const selectedId = parseInt(document.getElementById('note-selector').value);
-    const newNote = notes.find(note => note.id === selectedId);
-    if (newNote) {
-        currentNoteId = selectedId;
-        document.getElementById('editor').innerHTML = newNote.content;
-        localStorage.setItem('last-active-note-id', currentNoteId);
-    }
-}
-
-function createNewNote() {
-    const noteName = prompt('Enter a name for your new note:', `Note ${notes.length + 1}`);
-    if (noteName && noteName.trim() !== '') {
-        const newNote = {
-            id: Date.now(),
-            name: noteName.trim(),
-            content: ''
-        };
-        notes.push(newNote);
-        currentNoteId = newNote.id;
-        localStorage.setItem('last-active-note-id', currentNoteId);
-        document.getElementById('editor').innerHTML = '';
-        renderNoteSelector();
-        saveNotesToLocal();
-    }
-}
-
-function deleteCurrentNote() {
-    if (notes.length <= 1) {
-        showNotification('Cannot delete the last note.', 'error');
-        return;
-    }
-
-    const currentNote = notes.find(note => note.id === currentNoteId);
-    if (confirm(`Are you sure you want to delete "${currentNote.name}"? This action cannot be undone.`)) {
-        notes = notes.filter(note => note.id !== currentNoteId);
-        currentNoteId = notes[0].id; // Switch to the first note
-        localStorage.setItem('last-active-note-id', currentNoteId);
-        switchNote();
-        renderNoteSelector();
-        saveNotesToLocal();
-        showNotification('Note deleted successfully', 'info');
-    }
-}
-
-function updateWordCount() {
-    const text = document.getElementById('editor').innerText;
-    const words = text.trim() ? text.trim().split(/\s+/) : [];
-    const characters = text.length;
-    const charactersNoSpace = text.replace(/\s/g, '').length;
-    const paragraphs = text.trim() ? text.trim().split(/\n\s*\n/).filter(p => p.length > 0) : [];
-    
-    document.getElementById('word-count-value').textContent = words.length;
-    document.getElementById('char-count-value').textContent = characters;
-    document.getElementById('char-no-space-count-value').textContent = charactersNoSpace;
-    document.getElementById('paragraph-count-value').textContent = paragraphs.length;
-}
-
-function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.style.display = 'none'; // Hide the link
-    document.body.appendChild(a);
-    a.click();
-    
-    // Clean up
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-}
-
-// --- Image Tool Functions ---
-
-// Image Tools Initialization
-function initializeImageTools() {
-    // Image upload
-    const imageUpload = document.getElementById('image-upload');
-    if (imageUpload) {
-        imageUpload.addEventListener('change', handleImageUpload);
-    }
-    
-    // Tool buttons
-    const toolButtons = document.querySelectorAll('.image-tool-btn');
-    toolButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tool = button.id.replace('-tool', '');
-            selectTool(tool);
-        });
-    });
-    
-    // Zoom controls
-    const zoomInBtn = document.getElementById('zoom-in');
-    const zoomOutBtn = document.getElementById('zoom-out');
-    const zoomFitBtn = document.getElementById('zoom-fit');
-    const resetImageBtn = document.getElementById('reset-image');
-    const clearScreenBtn = document.getElementById('clear-screen');
-    
-    if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomImage(1.2));
-    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomImage(0.8));
-    if (zoomFitBtn) zoomFitBtn.addEventListener('click', resetZoom);
-    if (resetImageBtn) resetImageBtn.addEventListener('click', resetImage);
-    if (clearScreenBtn) clearScreenBtn.addEventListener('click', clearScreen);
-    
-    // Drag and drop
-    setupDragAndDrop();
-}
-
-// Handle image upload
-function handleImageUpload(e) {
-    const files = e.target.files;
-    if (files.length > 0) {
-        const file = files[0];
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = function() {
-                currentImageData = {
-                    url: event.target.result,
-                    name: file.name,
-                    size: file.size,
-                    type: file.type,
-                    width: img.width,
-                    height: img.height
-                };
-                
-                originalImageData = {...currentImageData};
-                displayImage(currentImageData.url);
-                addToRecentFiles(currentImageData);
-                resetImageHistory();
-                
-                // Show both buttons when image is loaded
-                document.getElementById('reset-image').classList.remove('hidden');
-                const clearScreenBtn = document.getElementById('clear-screen');
-                if (clearScreenBtn) {
-                    clearScreenBtn.classList.remove('hidden');
-                }
-                
-                // Update upload prompt
-                document.getElementById('upload-prompt').textContent = file.name;
-            };
-            img.src = event.target.result;
-        };
-        
-        reader.readAsDataURL(file);
-    }
-}
-
-// Display image in preview
-function displayImage(imageUrl) {
-    const container = document.getElementById('image-preview-container');
-    container.innerHTML = '';
-    
-    const img = document.createElement('img');
-    img.src = imageUrl;
-    img.id = 'preview-image';
-    img.className = 'max-w-full max-h-full';
-    img.style.transform = `scale(${zoomLevel})`;
-    
-    container.appendChild(img);
-    
-    // If crop tool is active, initialize cropper
-    if (currentTool === 'crop') {
-        setTimeout(() => {
-            initializeCropper();
-        }, 100);
-    }
-}
-
-// Select a tool
-function selectTool(tool) {
-    currentTool = tool;
-    
-    // Update UI
-    document.querySelectorAll('.image-tool-btn').forEach(btn => {
-        btn.classList.remove('bg-indigo-100', 'dark:bg-gray-600');
-    });
-    
-    document.getElementById(`${tool}-tool`).classList.add('bg-indigo-100', 'dark:bg-gray-600');
-    
-    // Destroy cropper if it exists and we're switching away from crop tool
-    if (tool !== 'crop' && cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
-    
-    // Show tool-specific controls
-    showToolControls(tool);
-}
-
-// Show tool-specific controls
-function showToolControls(tool) {
-    const controlsContainer = document.getElementById('tool-controls');
-    controlsContainer.innerHTML = '';
-    
-    switch(tool) {
-        case 'thumbnail':
-            showThumbnailControls(controlsContainer);
-            break;
-        case 'resize':
-            showResizeControls(controlsContainer);
-            break;
-        case 'compress':
-            showCompressControls(controlsContainer);
-            break;
-        case 'convert':
-            showConvertControls(controlsContainer);
-            break;
-        case 'crop':
-            showCropControls(controlsContainer);
-            break;
-        case 'watermark':
-            showWatermarkControls(controlsContainer);
-            break;
-        case 'filter':
-            showFilterControls(controlsContainer);
-            break;
-        case 'metadata':
-            showMetadataControls(controlsContainer);
-            break;
-        case 'merge':
-            showMergeControls(controlsContainer);
-            break;
-        case 'batch':
-            showBatchControls(controlsContainer);
-            break;
-        // Add other tool controls as needed
-        default:
-            controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust settings for this tool.</p>';
-    }
-}
-
-// Show crop controls
-function showCropControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Crop Image</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Aspect Ratio</label>
-                <select id="crop-aspect-ratio" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                    <option value="free">Free</option>
-                    <option value="1.77">16:9</option>
-                    <option value="1.33">4:3</option>
-                    <option value="1">1:1</option>
-                    <option value="0.75">3:4</option>
-                    <option value="0.56">9:16</option>
-                </select>
-            </div>
-            <div class="mb-4">
-                <label class="flex items-center">
-                    <input type="checkbox" id="crop-guide" class="mr-2" checked>
-                    <span>Show Guides</span>
-                </label>
-            </div>
-            <div class="flex space-x-2">
-                <button id="cancel-crop" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                    Cancel
-                </button>
-                <button id="download-cropped" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Crop & Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Add event listeners
-    document.getElementById('crop-aspect-ratio').addEventListener('change', updateCropAspectRatio);
-    document.getElementById('crop-guide').addEventListener('change', toggleCropGuides);
-    document.getElementById('cancel-crop').addEventListener('click', cancelCrop);
-    document.getElementById('download-cropped').addEventListener('click', downloadCroppedImage);
-    
-    // Initialize cropper
-    initializeCropper();
-}
-
-// Initialize cropper
-function initializeCropper() {
-    if (!currentImageData) return;
-    
-    const image = document.getElementById('preview-image');
-    if (!image) return;
-    
-    // Destroy existing cropper if it exists
-    if (cropper) {
-        cropper.destroy();
-    }
-    
-    // Create new cropper
-    cropper = new Cropper(image, {
-        aspectRatio: NaN,
-        viewMode: 1,
-        guides: true,
-        center: true,
-        highlight: true,
-        background: true,
-        autoCrop: true,
-        autoCropArea: 0.8,
-        movable: true,
-        rotatable: false,
-        scalable: false,
-        zoomable: true,
-        zoomOnTouch: true,
-        zoomOnWheel: true,
-        cropBoxMovable: true,
-        cropBoxResizable: true,
-        toggleDragModeOnDblclick: false,
-    });
-}
-
-// Update crop aspect ratio
-function updateCropAspectRatio() {
-    if (!cropper) return;
-    
-    const aspectRatio = document.getElementById('crop-aspect-ratio').value;
-    cropper.setAspectRatio(aspectRatio === 'free' ? NaN : parseFloat(aspectRatio));
-}
-
-// Toggle crop guides
-function toggleCropGuides() {
-    if (!cropper) return;
-    
-    const showGuides = document.getElementById('crop-guide').checked;
-    cropper.setOption('guides', showGuides);
-    cropper.setOption('center', showGuides);
-    cropper.setOption('highlight', showGuides);
-}
-
-// Cancel crop
-function cancelCrop() {
-    if (cropper) {
-        cropper.destroy();
-        cropper = null;
-    }
-    
-    // Reset to original image
-    if (originalImageData) {
-        currentImageData = {...originalImageData};
-        displayImage(originalImageData.url);
-    }
-}
-
-// Download cropped image
-function downloadCroppedImage() {
-    if (!cropper) return;
-    
-    // Get cropped canvas
-    const canvas = cropper.getCroppedCanvas({
-        maxWidth: 4096,
-        maxHeight: 4096,
-        fillColor: '#fff',
-        imageSmoothingEnabled: true,
-        imageSmoothingQuality: 'high',
-    });
-    
-    if (!canvas) {
-        showNotification('Failed to crop image', 'error');
-        return;
-    }
-    
-    // Convert canvas to blob
-    canvas.toBlob(function(blob) {
-        if (!blob) {
-            showNotification('Failed to process cropped image', 'error');
-            return;
-        }
-        
-        // Download the cropped image
-        const originalName = currentImageData ? currentImageData.name : 'image';
-        const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-        downloadBlob(blob, `cropped_${nameWithoutExt}.jpeg`);
-        
-        showNotification('Cropped image downloaded successfully', 'success');
-    }, 'image/jpeg', 0.9);
-}
-
-// Show thumbnail generator controls
-function showThumbnailControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Thumbnail Generator</h3>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Width (px)</label>
-                    <input type="number" id="thumb-width" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="150">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Height (px)</label>
-                    <input type="number" id="thumb-height" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="150">
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="flex items-center">
-                    <input type="checkbox" id="maintain-thumb-aspect" class="mr-2" checked>
-                    <span>Maintain aspect ratio</span>
-                </label>
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Quality (1-100)</label>
-                <input type="range" id="thumb-quality" min="1" max="100" value="80" class="w-full">
-                <div class="flex justify-between text-xs text-gray-500">
-                    <span>Low Quality</span>
-                    <span id="thumb-quality-value">80</span>
-                    <span>High Quality</span>
-                </div>
-            </div>
-            <div class="flex space-x-2">
-                <button id="generate-thumbnail" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Generate Thumbnail
-                </button>
-                <button id="download-thumbnail" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Update quality value display
-    document.getElementById('thumb-quality').addEventListener('input', function() {
-        document.getElementById('thumb-quality-value').textContent = this.value;
-    });
-    
-    // Add event listeners
-    document.getElementById('maintain-thumb-aspect').addEventListener('change', function() {
-        const widthInput = document.getElementById('thumb-width');
-        const heightInput = document.getElementById('thumb-height');
-        
-        if (this.checked && currentImageData) {
-            const aspectRatio = currentImageData.width / currentImageData.height;
-            
-            widthInput.addEventListener('input', function() {
-                heightInput.value = Math.round(this.value / aspectRatio);
-            });
-            
-            heightInput.addEventListener('input', function() {
-                widthInput.value = Math.round(this.value * aspectRatio);
-            });
-        }
-    });
-    
-    document.getElementById('generate-thumbnail').addEventListener('click', function() {
-        const width = parseInt(document.getElementById('thumb-width').value);
-        const height = parseInt(document.getElementById('thumb-height').value);
-        const quality = parseInt(document.getElementById('thumb-quality').value) / 100;
-        
-        if (width && height && currentImageData) {
-            generateThumbnail(width, height, quality);
-        }
-    });
-    
-    document.getElementById('download-thumbnail').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate thumbnail to get the blob
-            const width = parseInt(document.getElementById('thumb-width').value);
-            const height = parseInt(document.getElementById('thumb-height').value);
-            const quality = parseInt(document.getElementById('thumb-quality').value) / 100;
-            
-            if (width && height && currentImageData) {
-                generateThumbnailForDownload(width, height, quality);
-            }
-        }
-    });
-}
-
-// Generate thumbnail
-function generateThumbnail(width, height, quality) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Calculate dimensions to maintain aspect ratio
-        let drawWidth = width;
-        let drawHeight = height;
-        const aspectRatio = img.width / img.height;
-        
-        if (aspectRatio > width / height) {
-            drawHeight = width / aspectRatio;
-        } else {
-            drawWidth = height * aspectRatio;
-        }
-        
-        // Center the image
-        const x = (width - drawWidth) / 2;
-        const y = (height - drawHeight) / 2;
-        
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        
-        // Draw image
-        ctx.drawImage(img, x, y, drawWidth, drawHeight);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                width: width,
-                height: height,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Thumbnail generated successfully', 'success');
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Generate thumbnail for download (FIXED)
-function generateThumbnailForDownload(width, height, quality) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = width;
-        canvas.height = height;
-        
-        // Calculate dimensions to maintain aspect ratio
-        let drawWidth = width;
-        let drawHeight = height;
-        const aspectRatio = img.width / img.height;
-        
-        if (aspectRatio > width / height) {
-            drawHeight = width / aspectRatio;
-        } else {
-            drawWidth = height * aspectRatio;
-        }
-        
-        // Center the image
-        const x = (width - drawWidth) / 2;
-        const y = (height - drawHeight) / 2;
-        
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        
-        // Draw image
-        ctx.drawImage(img, x, y, drawWidth, drawHeight);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `thumbnail_${nameWithoutExt}.jpeg`);
-            showNotification('Thumbnail downloaded successfully', 'success');
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Show resize controls
-function showResizeControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Resize Image</h3>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Width (px)</label>
-                    <input type="number" id="resize-width" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="${currentImageData ? currentImageData.width : ''}">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Height (px)</label>
-                    <input type="number" id="resize-height" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="${currentImageData ? currentImageData.height : ''}">
-                </div>
-            </div>
-            <div class="mb-4">
-                <label class="flex items-center">
-                    <input type="checkbox" id="maintain-aspect" class="mr-2" checked>
-                    <span>Maintain aspect ratio</span>
-                </label>
-            </div>
-            <div class="flex space-x-2">
-                <button id="apply-resize" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Apply Resize
-                </button>
-                <button id="download-resized" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Add event listeners
-    document.getElementById('maintain-aspect').addEventListener('change', function() {
-        const widthInput = document.getElementById('resize-width');
-        const heightInput = document.getElementById('resize-height');
-        
-        if (this.checked && currentImageData) {
-            const aspectRatio = currentImageData.width / currentImageData.height;
-            
-            widthInput.addEventListener('input', function() {
-                heightInput.value = Math.round(this.value / aspectRatio);
-            });
-            
-            heightInput.addEventListener('input', function() {
-                widthInput.value = Math.round(this.value * aspectRatio);
-            });
-        }
-    });
-    
-    document.getElementById('apply-resize').addEventListener('click', function() {
-        const width = parseInt(document.getElementById('resize-width').value);
-        const height = parseInt(document.getElementById('resize-height').value);
-        
-        if (width && height && currentImageData) {
-            resizeImage(width, height);
-        }
-    });
-    
-    document.getElementById('download-resized').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate resized image to get the blob
-            const width = parseInt(document.getElementById('resize-width').value);
-            const height = parseInt(document.getElementById('resize-height').value);
-            
-            if (width && height && currentImageData) {
-                resizeImageForDownload(width, height);
-            }
-        }
-    });
-}
-
-// Image manipulation functions
-function resizeImage(width, height) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                width: width,
-                height: height,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Image resized successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Resize image for download
-function resizeImageForDownload(width, height) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `resized_${nameWithoutExt}.jpeg`);
-            showNotification('Resized image downloaded successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Show compress controls
-function showCompressControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Compress Image</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Quality (1-100)</label>
-                <input type="range" id="compress-quality" min="1" max="100" value="80" class="w-full">
-                <div class="flex justify-between text-xs text-gray-500">
-                    <span>Low Quality</span>
-                    <span id="quality-value">80</span>
-                    <span>High Quality</span>
-                </div>
-            </div>
-            <div class="mb-4">
-                <p>Original Size: ${currentImageData ? formatFileSize(currentImageData.size) : 'N/A'}</p>
-                <p>Estimated New Size: <span id="estimated-size">Calculating...</span></p>
-            </div>
-            <div class="flex space-x-2">
-                <button id="apply-compress" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Apply Compression
-                </button>
-                <button id="download-compressed" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Update quality value display
-    document.getElementById('compress-quality').addEventListener('input', function() {
-        document.getElementById('quality-value').textContent = this.value;
-        // Estimate new size (this is a rough estimation)
-        if (currentImageData) {
-            const estimatedSize = Math.round(currentImageData.size * (this.value / 100));
-            document.getElementById('estimated-size').textContent = formatFileSize(estimatedSize);
-        }
-    });
-    
-    document.getElementById('apply-compress').addEventListener('click', function() {
-        const quality = parseInt(document.getElementById('compress-quality').value) / 100;
-        compressImage(quality);
-    });
-    
-    document.getElementById('download-compressed').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate compressed image to get the blob
-            const quality = parseInt(document.getElementById('compress-quality').value) / 100;
-            compressImageForDownload(quality);
-        }
-    });
-}
-
-function compressImage(quality) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification(`Image compressed to ${formatFileSize(blob.size)}`, 'success');
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Compress image for download (FIXED)
-function compressImageForDownload(quality) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `compressed_${nameWithoutExt}.jpeg`);
-            showNotification('Compressed image downloaded successfully', 'success');
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Show convert controls
-function showConvertControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Convert Image Format</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Output Format</label>
-                <select id="convert-format" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                    <option value="jpeg">JPEG</option>
-                    <option value="png">PNG</option>
-                    <option value="webp">WebP</option>
-                    <option value="bmp">BMP</option>
-                </select>
-            </div>
-            <button id="apply-convert" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                Convert & Download
-            </button>
-        </div>
-    `;
-    
-    document.getElementById('apply-convert').addEventListener('click', function() {
-        const format = document.getElementById('convert-format').value;
-        convertImage(format);
-    });
-}
-
-// Show watermark controls
-function showWatermarkControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Add Watermark</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Watermark Type</label>
-                <div class="flex space-x-4">
-                    <label class="flex items-center">
-                        <input type="radio" name="watermark-type" value="text" checked class="mr-2">
-                        <span>Text</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="radio" name="watermark-type" value="image" class="mr-2">
-                        <span>Image</span>
-                    </label>
-                </div>
-            </div>
-            <div id="text-watermark-options" class="mb-4">
-                <div class="mb-2">
-                    <label class="block text-sm font-medium mb-1">Text</label>
-                    <input type="text" id="watermark-text" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" placeholder="Enter watermark text">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mb-2">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Font Size</label>
-                        <input type="number" id="watermark-font-size" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="20">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Color</label>
-                        <input type="color" id="watermark-color" class="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="#ffffff">
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <label class="block text-sm font-medium mb-1">Position</label>
-                    <select id="watermark-position" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                        <option value="top-left">Top Left</option>
-                        <option value="top-right">Top Right</option>
-                        <option value="bottom-left">Bottom Left</option>
-                        <option value="bottom-right" selected>Bottom Right</option>
-                        <option value="center">Center</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Opacity</label>
-                    <input type="range" id="watermark-opacity" min="0" max="1" step="0.1" value="0.5" class="w-full">
-                </div>
-            </div>
-            <div id="image-watermark-options" class="mb-4 hidden">
-                <div class="mb-2">
-                    <label class="block text-sm font-medium mb-1">Select Watermark Image</label>
-                    <input type="file" id="watermark-image" accept="image/*" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                </div>
-                <div class="mb-2">
-                    <label class="block text-sm font-medium mb-1">Position</label>
-                    <select id="watermark-image-position" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                        <option value="top-left">Top Left</option>
-                        <option value="top-right">Top Right</option>
-                        <option value="bottom-left">Bottom Left</option>
-                        <option value="bottom-right" selected>Bottom Right</option>
-                        <option value="center">Center</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Opacity</label>
-                    <input type="range" id="watermark-image-opacity" min="0" max="1" step="0.1" value="0.5" class="w-full">
-                </div>
-            </div>
-            <div class="flex space-x-2">
-                <button id="apply-watermark" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Apply Watermark
-                </button>
-                <button id="download-watermarked" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Toggle watermark type options
-    document.querySelectorAll('input[name="watermark-type"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            if (this.value === 'text') {
-                document.getElementById('text-watermark-options').classList.remove('hidden');
-                document.getElementById('image-watermark-options').classList.add('hidden');
-            } else {
-                document.getElementById('text-watermark-options').classList.add('hidden');
-                document.getElementById('image-watermark-options').classList.remove('hidden');
-            }
-        });
-    });
-    
-    document.getElementById('apply-watermark').addEventListener('click', function() {
-        const watermarkType = document.querySelector('input[name="watermark-type"]:checked').value;
-        
-        if (watermarkType === 'text') {
-            const text = document.getElementById('watermark-text').value;
-            const fontSize = document.getElementById('watermark-font-size').value;
-            const color = document.getElementById('watermark-color').value;
-            const position = document.getElementById('watermark-position').value;
-            const opacity = document.getElementById('watermark-opacity').value;
-            
-            if (text) {
-                addTextWatermark(text, fontSize, color, position, opacity);
-            }
-        } else {
-            const watermarkImage = document.getElementById('watermark-image').files[0];
-            const position = document.getElementById('watermark-image-position').value;
-            const opacity = document.getElementById('watermark-image-opacity').value;
-            
-            if (watermarkImage) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    addImageWatermark(e.target.result, position, opacity);
-                };
-                reader.readAsDataURL(watermarkImage);
-            }
-        }
-    });
-    
-    document.getElementById('download-watermarked').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate watermarked image to get the blob
-            const watermarkType = document.querySelector('input[name="watermark-type"]:checked').value;
-            
-            if (watermarkType === 'text') {
-                const text = document.getElementById('watermark-text').value;
-                const fontSize = document.getElementById('watermark-font-size').value;
-                const color = document.getElementById('watermark-color').value;
-                const position = document.getElementById('watermark-position').value;
-                const opacity = document.getElementById('watermark-opacity').value;
-                
-                if (text) {
-                    addTextWatermarkForDownload(text, fontSize, color, position, opacity);
-                }
-            } else {
-                const watermarkImage = document.getElementById('watermark-image').files[0];
-                const position = document.getElementById('watermark-image-position').value;
-                const opacity = document.getElementById('watermark-image-opacity').value;
-                
-                if (watermarkImage) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        addImageWatermarkForDownload(e.target.result, position, opacity);
-                    };
-                    reader.readAsDataURL(watermarkImage);
                 }
             }
         }
-    });
-}
-
-// Show filter controls
-function showFilterControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Filters & Effects</h3>
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="grayscale">
-                    <i class="fas fa-adjust mb-2"></i>
-                    <p>Grayscale</p>
-                </button>
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="sepia">
-                    <i class="fas fa-coffee mb-2"></i>
-                    <p>Sepia</p>
-                </button>
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="invert">
-                    <i class="fas fa-exchange-alt mb-2"></i>
-                    <p>Invert</p>
-                </button>
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="blur">
-                    <i class="fas fa-water mb-2"></i>
-                    <p>Blur</p>
-                </button>
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="brightness">
-                    <i class="fas fa-sun mb-2"></i>
-                    <p>Brightness</p>
-                </button>
-                <button class="filter-btn p-3 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" data-filter="contrast">
-                    <i class="fas fa-circle-half-stroke mb-2"></i>
-                    <p>Contrast</p>
-                </button>
-            </div>
-            <div id="filter-controls" class="mb-4 hidden">
-                <label class="block text-sm font-medium mb-1">Intensity</label>
-                <input type="range" id="filter-intensity" min="0" max="100" value="50" class="w-full">
-            </div>
-            <div class="flex space-x-2">
-                <button id="apply-filter" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Apply Filter
-                </button>
-                <button id="reset-filters" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                    Reset Filters
-                </button>
-                <button id="download-filtered" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Filter button clicks
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const filter = this.getAttribute('data-filter');
-            
-            // Update active state
-            document.querySelectorAll('.filter-btn').forEach(b => {
-                b.classList.remove('ring-2', 'ring-indigo-500');
-            });
-            this.classList.add('ring-2', 'ring-indigo-500');
-            
-            // Show intensity control for certain filters
-            if (['blur', 'brightness', 'contrast'].includes(filter)) {
-                document.getElementById('filter-controls').classList.remove('hidden');
-            } else {
-                document.getElementById('filter-controls').classList.add('hidden');
-            }
-            
-            // Store selected filter
-            activeFilters = [filter];
-        });
-    });
-    
-    document.getElementById('apply-filter').addEventListener('click', function() {
-        if (activeFilters.length > 0 && currentImageData) {
-            const filter = activeFilters[0];
-            const intensity = document.getElementById('filter-intensity').value / 100;
-            applyFilter(filter, intensity);
-        }
-    });
-    
-    document.getElementById('reset-filters').addEventListener('click', function() {
-        if (originalImageData) {
-            displayImage(originalImageData.url);
-            currentImageData = {...originalImageData};
-            activeFilters = [];
-        }
-    });
-    
-    document.getElementById('download-filtered').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate filtered image to get the blob
-            if (activeFilters.length > 0) {
-                const filter = activeFilters[0];
-                const intensity = document.getElementById('filter-intensity').value / 100;
-                applyFilterForDownload(filter, intensity);
-            }
-        }
-    });
-}
-
-// Show metadata controls
-function showMetadataControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Image Metadata</h3>
-            <div id="metadata-content">
-                ${currentImageData ? `
-                    <div class="space-y-2">
-                        <div class="flex justify-between">
-                            <span class="font-medium">Name:</span>
-                            <span>${currentImageData.name}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="font-medium">Size:</span>
-                            <span>${formatFileSize(currentImageData.size)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="font-medium">Type:</span>
-                            <span>${currentImageData.type}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="font-medium">Dimensions:</span>
-                            <span>${currentImageData.width} × ${currentImageData.height} px</span>
-                        </div>
-                    </div>
-                ` : '<p>No image selected</p>'}
-            </div>
-            <div class="flex space-x-2 mt-4">
-                <button id="remove-metadata" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                    Remove Metadata
-                </button>
-                <button id="download-current" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('remove-metadata').addEventListener('click', function() {
-        if (currentImageData) {
-            removeMetadata();
-        }
-    });
-    
-    document.getElementById('download-current').addEventListener('click', function() {
-        if (currentImageData) {
-            // Re-generate image without metadata to get the blob
-            removeMetadataForDownload();
-        }
-    });
-}
-
-// Show image merger controls
-function showMergeControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Image Merger</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Select Images to Merge</label>
-                <input type="file" id="merge-images" accept="image/*" multiple class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Merge Direction</label>
-                <select id="merge-direction" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                    <option value="horizontal">Horizontal</option>
-                    <option value="vertical">Vertical</option>
-                    <option value="grid">Grid (2x2)</option>
-                </select>
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Spacing (px)</label>
-                <input type="number" id="merge-spacing" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="0" min="0">
-            </div>
-            <div id="merge-preview" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg min-h-[100px] flex items-center justify-center">
-                <p class="text-gray-500">Select images to preview</p>
-            </div>
-            <div class="flex space-x-2">
-                <button id="merge-images-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors" disabled>
-                    Merge Images
-                </button>
-                <button id="download-merged" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors" disabled>
-                    Download
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Add event listeners
-    document.getElementById('merge-images').addEventListener('change', handleMergeImageSelection);
-    document.getElementById('merge-images-btn').addEventListener('click', mergeSelectedImages);
-    document.getElementById('download-merged').addEventListener('click', downloadMergedImage);
-}
-
-// Handle merge image selection
-function handleMergeImageSelection(e) {
-    const files = e.target.files;
-    if (files.length < 2) {
-        showNotification('Please select at least 2 images to merge', 'error');
-        return;
-    }
-    
-    selectedMergeImages = [];
-    const previewContainer = document.getElementById('merge-preview');
-    previewContainer.innerHTML = '';
-    
-    let loadedCount = 0;
-    const imagePromises = [];
-    
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-        
-        const promise = new Promise((resolve) => {
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    selectedMergeImages.push({
-                        url: event.target.result,
-                        width: img.width,
-                        height: img.height,
-                        name: file.name
-                    });
-                    
-                    // Add thumbnail to preview
-                    const thumb = document.createElement('img');
-                    thumb.src = event.target.result;
-                    thumb.className = 'w-16 h-16 object-cover rounded m-1';
-                    previewContainer.appendChild(thumb);
-                    
-                    loadedCount++;
-                    if (loadedCount === files.length) {
-                        document.getElementById('merge-images-btn').disabled = false;
-                    }
-                    resolve();
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        });
-        
-        imagePromises.push(promise);
-    }
-    
-    Promise.all(imagePromises);
-}
-
-// Merge selected images
-function mergeSelectedImages() {
-    if (selectedMergeImages.length < 2) {
-        showNotification('Please select at least 2 images to merge', 'error');
-        return;
-    }
-    
-    const direction = document.getElementById('merge-direction').value;
-    const spacing = parseInt(document.getElementById('merge-spacing').value) || 0;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Calculate canvas dimensions
-    let totalWidth = 0;
-    let totalHeight = 0;
-    let maxWidth = 0;
-    let maxHeight = 0;
-    
-    selectedMergeImages.forEach(img => {
-        maxWidth = Math.max(maxWidth, img.width);
-        maxHeight = Math.max(maxHeight, img.height);
-        totalWidth += img.width;
-        totalHeight += img.height;
-    });
-    
-    if (direction === 'horizontal') {
-        canvas.width = totalWidth + (spacing * (selectedMergeImages.length - 1));
-        canvas.height = maxHeight;
-    } else if (direction === 'vertical') {
-        canvas.width = maxWidth;
-        canvas.height = totalHeight + (spacing * (selectedMergeImages.length - 1));
-    } else if (direction === 'grid') {
-        // Limit to 4 images for grid
-        const gridImages = selectedMergeImages.slice(0, 4);
-        canvas.width = (maxWidth * 2) + spacing;
-        canvas.height = (maxHeight * 2) + spacing;
-    }
-    
-    // Fill with white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw images
-    let currentX = 0;
-    let currentY = 0;
-    
-    if (direction === 'horizontal') {
-        selectedMergeImages.forEach(imgData => {
-            const img = new Image();
-            img.onload = function() {
-                const y = (canvas.height - img.height) / 2;
-                ctx.drawImage(img, currentX, y);
-                currentX += img.width + spacing;
-            };
-            img.src = imgData.url;
-        });
-    } else if (direction === 'vertical') {
-        selectedMergeImages.forEach(imgData => {
-            const img = new Image();
-            img.onload = function() {
-                const x = (canvas.width - img.width) / 2;
-                ctx.drawImage(img, x, currentY);
-                currentY += img.height + spacing;
-            };
-            img.src = imgData.url;
-        });
-    } else if (direction === 'grid') {
-        const gridImages = selectedMergeImages.slice(0, 4);
-        const positions = [
-            { x: 0, y: 0 },
-            { x: maxWidth + spacing, y: 0 },
-            { x: 0, y: maxHeight + spacing },
-            { x: maxWidth + spacing, y: maxHeight + spacing }
-        ];
-        
-        gridImages.forEach((imgData, index) => {
-            const img = new Image();
-            img.onload = function() {
-                const pos = positions[index];
-                ctx.drawImage(img, pos.x, pos.y);
-            };
-            img.src = imgData.url;
-        });
-    }
-    
-    // Convert to blob after a short delay to ensure all images are drawn
-    setTimeout(() => {
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            mergedImageData = {
-                url: url,
-                name: 'merged-image.jpeg',
-                size: blob.size,
-                type: 'image/jpeg',
-                width: canvas.width,
-                height: canvas.height
-            };
-            
-            currentImageData = {...mergedImageData};
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Images merged successfully', 'success');
-            
-            // Show reset button
-            document.getElementById('reset-image').classList.remove('hidden');
-            
-            // Enable download button
-            document.getElementById('download-merged').disabled = false;
-        }, 'image/jpeg', 0.9);
-    }, 500);
-}
-
-// Download merged image (FIXED)
-function downloadMergedImage() {
-    if (!mergedImageData && !selectedMergeImages.length) {
-        showNotification('No merged image to download', 'error');
-        return;
-    }
-    
-    const direction = document.getElementById('merge-direction').value;
-    const spacing = parseInt(document.getElementById('merge-spacing').value) || 0;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Calculate canvas dimensions
-    let totalWidth = 0;
-    let totalHeight = 0;
-    let maxWidth = 0;
-    let maxHeight = 0;
-    
-    selectedMergeImages.forEach(img => {
-        maxWidth = Math.max(maxWidth, img.width);
-        maxHeight = Math.max(maxHeight, img.height);
-        totalWidth += img.width;
-        totalHeight += img.height;
-    });
-    
-    if (direction === 'horizontal') {
-        canvas.width = totalWidth + (spacing * (selectedMergeImages.length - 1));
-        canvas.height = maxHeight;
-    } else if (direction === 'vertical') {
-        canvas.width = maxWidth;
-        canvas.height = totalHeight + (spacing * (selectedMergeImages.length - 1));
-    } else if (direction === 'grid') {
-        // Limit to 4 images for grid
-        const gridImages = selectedMergeImages.slice(0, 4);
-        canvas.width = (maxWidth * 2) + spacing;
-        canvas.height = (maxHeight * 2) + spacing;
-    }
-    
-    // Fill with white background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw images
-    let currentX = 0;
-    let currentY = 0;
-    
-    if (direction === 'horizontal') {
-        selectedMergeImages.forEach(imgData => {
-            const img = new Image();
-            img.onload = function() {
-                const y = (canvas.height - img.height) / 2;
-                ctx.drawImage(img, currentX, y);
-                currentX += img.width + spacing;
-            };
-            img.src = imgData.url;
-        });
-    } else if (direction === 'vertical') {
-        selectedMergeImages.forEach(imgData => {
-            const img = new Image();
-            img.onload = function() {
-                const x = (canvas.width - img.width) / 2;
-                ctx.drawImage(img, x, currentY);
-                currentY += img.height + spacing;
-            };
-            img.src = imgData.url;
-        });
-    } else if (direction === 'grid') {
-        const gridImages = selectedMergeImages.slice(0, 4);
-        const positions = [
-            { x: 0, y: 0 },
-            { x: maxWidth + spacing, y: 0 },
-            { x: 0, y: maxHeight + spacing },
-            { x: maxWidth + spacing, y: maxHeight + spacing }
-        ];
-        
-        gridImages.forEach((imgData, index) => {
-            const img = new Image();
-            img.onload = function() {
-                const pos = positions[index];
-                ctx.drawImage(img, pos.x, pos.y);
-            };
-            img.src = imgData.url;
-        });
-    }
-    
-    // Convert to blob after a short delay to ensure all images are drawn
-    setTimeout(() => {
-        canvas.toBlob(function(blob) {
-            const originalName = selectedMergeImages.length > 0 ? selectedMergeImages[0].name : 'merged-image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `merged_${nameWithoutExt}.jpeg`);
-            showNotification('Merged image downloaded successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    }, 500);
-}
-
-// Show batch process controls
-function showBatchControls(container) {
-    container.innerHTML = `
-        <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-            <h3 class="text-lg font-medium mb-4">Batch Process</h3>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Select Images</label>
-                <input type="file" id="batch-images" accept="image/*" multiple class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium mb-1">Operation</label>
-                <select id="batch-operation" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                    <option value="resize">Resize</option>
-                    <option value="compress">Compress</option>
-                    <option value="convert">Convert Format</option>
-                    <option value="watermark">Add Watermark</option>
-                </select>
-            </div>
-            <div id="batch-options" class="mb-4">
-                <!-- Options will be populated based on operation -->
-            </div>
-            <div id="batch-preview" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg min-h-[100px]">
-                <p class="text-gray-500">Select images to preview</p>
-            </div>
-            <button id="process-batch" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors" disabled>
-                Process Images
-            </button>
-            <div id="batch-progress" class="mt-4 hidden">
-                <div class="flex justify-between text-sm mb-1">
-                    <span>Processing...</span>
-                    <span id="batch-progress-text">0/0</span>
-                </div>
-                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                    <div id="batch-progress-bar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+    </script>
+</head>
+<body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-md">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center">
+                    <i class="fas fa-tools mr-2"></i>Multi-Tool Web App
+                    <span class="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded-full">Enhanced</span>
+                </h1>
+                <div class="flex items-center space-x-4">
+                    <button id="help-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors tooltip">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="tooltip-text">Press <kbd>?</kbd> for keyboard shortcuts</span>
+                    </button>
+                    <button id="theme-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        <i class="fas fa-moon dark:hidden"></i>
+                        <i class="fas fa-sun hidden dark:inline"></i>
+                    </button>
                 </div>
             </div>
         </div>
-    `;
-    
-    // Add event listeners
-    document.getElementById('batch-images').addEventListener('change', handleBatchImageSelection);
-    document.getElementById('batch-operation').addEventListener('change', updateBatchOptions);
-    document.getElementById('process-batch').addEventListener('click', processBatchImages);
-}
+        <!-- Progress Bar -->
+        <div class="h-1 bg-gray-200 dark:bg-gray-700">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+    </header>
 
-// Handle batch image selection
-function handleBatchImageSelection(e) {
-    const files = e.target.files;
-    if (files.length === 0) return;
-    
-    batchImages = [];
-    const previewContainer = document.getElementById('batch-preview');
-    previewContainer.innerHTML = '';
-    
-    let loadedCount = 0;
-    
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-        
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = function() {
-                batchImages.push({
-                    url: event.target.result,
-                    width: img.width,
-                    height: img.height,
-                    name: file.name,
-                    type: file.type,
-                    size: file.size
-                });
-                
-                // Add thumbnail to preview
-                const thumb = document.createElement('img');
-                thumb.src = event.target.result;
-                thumb.className = 'w-16 h-16 object-cover rounded m-1';
-                previewContainer.appendChild(thumb);
-                
-                loadedCount++;
-                if (loadedCount === files.length) {
-                    document.getElementById('process-batch').disabled = false;
-                    updateBatchOptions();
-                }
-            };
-            img.src = event.target.result;
-        };
-        
-        reader.readAsDataURL(file);
-    }
-}
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- Tab Navigation -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6">
+            <div class="flex flex-wrap border-b border-gray-200 dark:border-gray-700">
+                <button class="tab-btn px-6 py-3 font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400" data-tab="notepad">
+                    <i class="fas fa-sticky-note mr-2"></i>Notepad
+                </button>
+                <button class="tab-btn px-6 py-3 font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400" data-tab="image-tools">
+                    <i class="fas fa-image mr-2"></i>Image Tools
+                </button>
+                <button class="tab-btn px-6 py-3 font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400" data-tab="qr-generator">
+                    <i class="fas fa-qrcode mr-2"></i>Generate QR
+                </button>
+                <button class="tab-btn px-6 py-3 font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400" data-tab="settings">
+                    <i class="fas fa-cog mr-2"></i>Settings
+                </button>
+            </div>
+        </div>
 
-// Update batch options based on operation
-function updateBatchOptions() {
-    const operation = document.getElementById('batch-operation').value;
-    const optionsContainer = document.getElementById('batch-options');
-    
-    switch(operation) {
-        case 'resize':
-            optionsContainer.innerHTML = `
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Width (px)</label>
-                        <input type="number" id="batch-width" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="800">
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Notepad Tab -->
+            <div id="notepad-tab" class="tab-panel hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <!-- Note Management UI -->
+                    <div id="note-management" class="mb-4 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <label for="note-selector" class="font-medium">Current Note:</label>
+                        <select id="note-selector" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700"></select>
+                        <button id="new-note-btn" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-plus mr-2"></i>New
+                        </button>
+                        <button id="delete-note-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors flex-shrink-0">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Height (px)</label>
-                        <input type="number" id="batch-height" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="600">
-                    </div>
-                </div>
-                <div class="mt-2">
-                    <label class="flex items-center">
-                        <input type="checkbox" id="batch-maintain-aspect" class="mr-2" checked>
-                        <span>Maintain aspect ratio</span>
-                    </label>
-                </div>
-            `;
-            break;
-            
-        case 'compress':
-            optionsContainer.innerHTML = `
-                <div>
-                    <label class="block text-sm font-medium mb-1">Quality (1-100)</label>
-                    <input type="range" id="batch-quality" min="1" max="100" value="80" class="w-full">
-                    <div class="flex justify-between text-xs text-gray-500">
-                        <span>Low Quality</span>
-                        <span id="batch-quality-value">80</span>
-                        <span>High Quality</span>
-                    </div>
-                </div>
-            `;
-            document.getElementById('batch-quality').addEventListener('input', function() {
-                document.getElementById('batch-quality-value').textContent = this.value;
-            });
-            break;
-            
-        case 'convert':
-            optionsContainer.innerHTML = `
-                <div>
-                    <label class="block text-sm font-medium mb-1">Output Format</label>
-                    <select id="batch-format" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                        <option value="jpeg">JPEG</option>
-                        <option value="png">PNG</option>
-                        <option value="webp">WebP</option>
-                    </select>
-                </div>
-            `;
-            break;
-            
-        case 'watermark':
-            optionsContainer.innerHTML = `
-                <div>
-                    <label class="block text-sm font-medium mb-1">Watermark Text</label>
-                    <input type="text" id="batch-watermark-text" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" placeholder="Enter watermark text">
-                </div>
-                <div class="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Position</label>
-                        <select id="batch-watermark-position" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                            <option value="bottom-right">Bottom Right</option>
-                            <option value="bottom-left">Bottom Left</option>
-                            <option value="top-right">Top Right</option>
-                            <option value="top-left">Top Left</option>
-                            <option value="center">Center</option>
+
+                    <!-- Editor Toolbar -->
+                    <div class="mb-4 flex flex-wrap gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="bold" title="Bold">
+                            <i class="fas fa-bold"></i>
+                            <span class="tooltip-text">Bold <kbd>Ctrl+B</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="italic" title="Italic">
+                            <i class="fas fa-italic"></i>
+                            <span class="tooltip-text">Italic <kbd>Ctrl+I</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="underline" title="Underline">
+                            <i class="fas fa-underline"></i>
+                            <span class="tooltip-text">Underline <kbd>Ctrl+U</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="strikeThrough" title="Strikethrough">
+                            <i class="fas fa-strikethrough"></i>
+                            <span class="tooltip-text">Strikethrough</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyLeft" title="Align Left">
+                            <i class="fas fa-align-left"></i>
+                            <span class="tooltip-text">Align Left</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyCenter" title="Align Center">
+                            <i class="fas fa-align-center"></i>
+                            <span class="tooltip-text">Align Center</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyRight" title="Align Right">
+                            <i class="fas fa-align-right"></i>
+                            <span class="tooltip-text">Align Right</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="justifyFull" title="Justify">
+                            <i class="fas fa-align-justify"></i>
+                            <span class="tooltip-text">Justify</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <select class="editor-select px-3 py-1 rounded bg-gray-200 dark:bg-gray-700" id="font-size">
+                            <option value="1">Small</option>
+                            <option value="3" selected>Normal</option>
+                            <option value="5">Large</option>
+                            <option value="7">Extra Large</option>
                         </select>
+                        <select class="editor-select px-3 py-1 rounded bg-gray-200 dark:bg-gray-700" id="font-family">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                        <input type="color" class="editor-color w-8 h-8 rounded" id="text-color" value="#000000" title="Text Color">
+                        <input type="color" class="editor-color w-8 h-8 rounded" id="bg-color" value="#ffffff" title="Background Color">
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="createLink" title="Insert Link">
+                            <i class="fas fa-link"></i>
+                            <span class="tooltip-text">Insert Link</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="insertHorizontalRule" title="Horizontal Rule">
+                            <i class="fas fa-minus"></i>
+                            <span class="tooltip-text">Horizontal Rule</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="removeFormat" title="Clear Formatting">
+                            <i class="fas fa-eraser"></i>
+                            <span class="tooltip-text">Clear Formatting</span>
+                        </button>
+                        <div class="border-l border-gray-300 dark:border-gray-600 mx-2"></div>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="undo" title="Undo">
+                            <i class="fas fa-undo"></i>
+                            <span class="tooltip-text">Undo <kbd>Ctrl+Z</kbd></span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="redo" title="Redo">
+                            <i class="fas fa-redo"></i>
+                            <span class="tooltip-text">Redo <kbd>Ctrl+Y</kbd></span>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Opacity</label>
-                        <input type="range" id="batch-watermark-opacity" min="0" max="1" step="0.1" value="0.5" class="w-full">
+                    <div id="editor" class="editor-content p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" contenteditable="true">
+                        Start typing your notes here...
+                    </div>
+                    <div class="mt-4 flex justify-between">
+                        <div class="flex space-x-2">
+                            <button id="clear-editor" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Clear
+                            </button>
+                            <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-calculator mr-2"></i>Word Count
+                            </button>
+                        </div>
+                        <div class="space-x-2">
+                            <button id="export-html" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-code mr-2"></i>Export HTML
+                            </button>
+                            <button id="save-local" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-save mr-2"></i>Save All Notes
+                            </button>
+                            <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-download mr-2"></i>Download
+                            </button>
+                        </div>
+                    </div>
+                    <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-bounce-in">
+                            <h3 class="text-lg font-semibold mb-4">Document Statistics</h3>
+                            <div class="space-y-2">
+                                <div class="flex justify-between">
+                                    <span>Words:</span>
+                                    <span id="word-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Characters:</span>
+                                    <span id="char-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Characters (no spaces):</span>
+                                    <span id="char-no-space-count-value" class="font-medium">0</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Paragraphs:</span>
+                                    <span id="paragraph-count-value" class="font-medium">0</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex justify-end">
+                                <button id="close-word-count" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            `;
-            break;
-    }
-}
+            </div>
 
-// Process batch images
-function processBatchImages() {
-    if (batchImages.length === 0) {
-        showNotification('Please select images to process', 'error');
-        return;
-    }
-    
-    const operation = document.getElementById('batch-operation').value;
-    const progressContainer = document.getElementById('batch-progress');
-    const progressBar = document.getElementById('batch-progress-bar');
-    const progressText = document.getElementById('batch-progress-text');
-    
-    progressContainer.classList.remove('hidden');
-    document.getElementById('process-batch').disabled = true;
-    
-    let processedCount = 0;
-    const totalCount = batchImages.length;
-    
-    batchImages.forEach((imageData, index) => {
-        setTimeout(() => {
-            // Update progress
-            processedCount++;
-            const percentage = (processedCount / totalCount) * 100;
-            progressBar.style.width = `${percentage}%`;
-            progressText.textContent = `${processedCount}/${totalCount}`;
-            
-            // Process image based on operation
-            switch(operation) {
-                case 'resize':
-                    processBatchResize(imageData, index);
-                    break;
-                case 'compress':
-                    processBatchCompress(imageData, index);
-                    break;
-                case 'convert':
-                    processBatchConvert(imageData, index);
-                    break;
-                case 'watermark':
-                    processBatchWatermark(imageData, index);
-                    break;
-            }
-            
-            // Check if all images are processed
-            if (processedCount === totalCount) {
-                setTimeout(() => {
-                    progressContainer.classList.add('hidden');
-                    document.getElementById('process-batch').disabled = false;
-                    showNotification(`Successfully processed ${totalCount} images`, 'success');
-                }, 500);
-            }
-        }, index * 100); // Small delay between processing
-    });
-}
+            <!-- Image Tools Tab -->
+            <div id="image-tools-tab" class="tab-panel">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- Image Tools Sidebar -->
+                    <div class="lg:col-span-1">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <h2 class="text-xl font-semibold mb-4">Image Tools</h2>
+                            <div class="space-y-2">
+                                <button id="thumbnail-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-compress mr-2"></i>Thumbnail Generator
+                                </button>
+                                <button id="resize-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-expand-arrows-alt mr-2"></i>Resize
+                                </button>
+                                <button id="compress-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-file-archive mr-2"></i>Compress
+                                </button>
+                                <button id="convert-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-exchange-alt mr-2"></i>Convert
+                                </button>
+                                <button id="crop-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-crop mr-2"></i>Crop
+                                </button>
+                                <button id="watermark-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-tint mr-2"></i>Watermark
+                                </button>
+                                <button id="merge-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-object-group mr-2"></i>Image Merger
+                                </button>
+                                <button id="filter-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-magic mr-2"></i>Filters & Effects
+                                </button>
+                                <button id="metadata-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-info-circle mr-2"></i>Metadata
+                                </button>
+                                <button id="batch-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
+                                    <i class="fas fa-layer-group mr-2"></i>Batch Process
+                                </button>
+                            </div>
+                            
+                            <!-- Image Upload -->
+                            <div class="mt-6">
+                                <label for="image-upload" class="block w-full cursor-pointer">
+                                    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+                                        <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                        <p id="upload-prompt" class="text-sm text-gray-600 dark:text-gray-400">
+                                            Select an Image
+                                        </p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
+                                    </div>
+                                </label>
+                                <input type="file" id="image-upload" class="hidden" accept="image/*" multiple>
+                            </div>
+                            
+                            <!-- Recent Files -->
+                            <div class="mt-6">
+                                <h3 class="text-sm font-medium mb-2">Recent Files</h3>
+                                <div id="recent-files" class="recent-files space-y-2">
+                                    <!-- Recent files will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-// Process batch resize
-function processBatchResize(imageData, index) {
-    const width = parseInt(document.getElementById('batch-width').value);
-    const height = parseInt(document.getElementById('batch-height').value);
-    const maintainAspect = document.getElementById('batch-maintain-aspect').checked;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        let finalWidth = width;
-        let finalHeight = height;
-        
-        if (maintainAspect) {
-            const aspectRatio = img.width / img.height;
-            if (aspectRatio > width / height) {
-                finalHeight = width / aspectRatio;
-            } else {
-                finalWidth = height * aspectRatio;
-            }
-        }
-        
-        canvas.width = finalWidth;
-        canvas.height = finalHeight;
-        ctx.drawImage(img, 0, 0, finalWidth, finalHeight);
-        
-        canvas.toBlob(function(blob) {
-            downloadBlob(blob, `resized_${imageData.name}`);
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = imageData.url;
-}
-
-// Process batch compress
-function processBatchCompress(imageData, index) {
-    const quality = parseInt(document.getElementById('batch-quality').value) / 100;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            downloadBlob(blob, `compressed_${imageData.name}`);
-        }, 'image/jpeg', quality);
-    };
-    
-    img.src = imageData.url;
-}
-
-// Process batch convert
-function processBatchConvert(imageData, index) {
-    const format = document.getElementById('batch-format').value;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const nameWithoutExt = imageData.name.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `${nameWithoutExt}.${format}`);
-        }, `image/${format}`);
-    };
-    
-    img.src = imageData.url;
-}
-
-// Process batch watermark
-function processBatchWatermark(imageData, index) {
-    const text = document.getElementById('batch-watermark-text').value;
-    const position = document.getElementById('batch-watermark-position').value;
-    const opacity = parseFloat(document.getElementById('batch-watermark-opacity').value);
-    
-    if (!text) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        // Add watermark
-        ctx.font = '20px Arial';
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = opacity;
-        
-        let x, y;
-        const padding = 20;
-        const textMetrics = ctx.measureText(text);
-        const textWidth = textMetrics.width;
-        
-        switch(position) {
-            case 'top-left':
-                x = padding;
-                y = padding + 20;
-                break;
-            case 'top-right':
-                x = canvas.width - textWidth - padding;
-                y = padding + 20;
-                break;
-            case 'bottom-left':
-                x = padding;
-                y = canvas.height - padding;
-                break;
-            case 'bottom-right':
-                x = canvas.width - textWidth - padding;
-                y = canvas.height - padding;
-                break;
-            case 'center':
-                x = (canvas.width - textWidth) / 2;
-                y = canvas.height / 2;
-                break;
-        }
-        
-        ctx.fillText(text, x, y);
-        
-        canvas.toBlob(function(blob) {
-            downloadBlob(blob, `watermarked_${imageData.name}`);
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = imageData.url;
-}
-
-// Image manipulation functions
-function convertImage(format) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            downloadBlob(blob, `converted-image.${format}`);
-            showNotification(`Image converted to ${format.toUpperCase()}`, 'success');
-        }, `image/${format}`);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-function addTextWatermark(text, fontSize, color, position, opacity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        // Set watermark properties
-        ctx.font = `${fontSize}px Arial`;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = opacity;
-        
-        // Calculate position
-        let x, y;
-        const padding = 20;
-        const textMetrics = ctx.measureText(text);
-        const textWidth = textMetrics.width;
-        
-        switch(position) {
-            case 'top-left':
-                x = padding;
-                y = padding + parseInt(fontSize);
-                break;
-            case 'top-right':
-                x = canvas.width - textWidth - padding;
-                y = padding + parseInt(fontSize);
-                break;
-            case 'bottom-left':
-                x = padding;
-                y = canvas.height - padding;
-                break;
-            case 'bottom-right':
-                x = canvas.width - textWidth - padding;
-                y = canvas.height - padding;
-                break;
-            case 'center':
-                x = (canvas.width - textWidth) / 2;
-                y = canvas.height / 2;
-                break;
-        }
-        
-        // Draw watermark
-        ctx.fillText(text, x, y);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Watermark added successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Add text watermark for download (FIXED)
-function addTextWatermarkForDownload(text, fontSize, color, position, opacity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        // Set watermark properties
-        ctx.font = `${fontSize}px Arial`;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = opacity;
-        
-        // Calculate position
-        let x, y;
-        const padding = 20;
-        const textMetrics = ctx.measureText(text);
-        const textWidth = textMetrics.width;
-        
-        switch(position) {
-            case 'top-left':
-                x = padding;
-                y = padding + parseInt(fontSize);
-                break;
-            case 'top-right':
-                x = canvas.width - textWidth - padding;
-                y = padding + parseInt(fontSize);
-                break;
-            case 'bottom-left':
-                x = padding;
-                y = canvas.height - padding;
-                break;
-            case 'bottom-right':
-                x = canvas.width - textWidth - padding;
-                y = canvas.height - padding;
-                break;
-            case 'center':
-                x = (canvas.width - textWidth) / 2;
-                y = canvas.height / 2;
-                break;
-        }
-        
-        // Draw watermark
-        ctx.fillText(text, x, y);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `watermarked_${nameWithoutExt}.jpeg`);
-            showNotification('Watermarked image downloaded successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-function addImageWatermark(watermarkUrl, position, opacity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    const watermark = new Image();
-    
-    let loadedImages = 0;
-    
-    function checkImagesLoaded() {
-        loadedImages++;
-        if (loadedImages === 2) {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // Set watermark opacity
-            ctx.globalAlpha = opacity;
-            
-            // Calculate position
-            let x, y;
-            const padding = 20;
-            const watermarkWidth = watermark.width;
-            const watermarkHeight = watermark.height;
-            
-            switch(position) {
-                case 'top-left':
-                    x = padding;
-                    y = padding;
-                    break;
-                case 'top-right':
-                    x = canvas.width - watermarkWidth - padding;
-                    y = padding;
-                    break;
-                case 'bottom-left':
-                    x = padding;
-                    y = canvas.height - watermarkHeight - padding;
-                    break;
-                case 'bottom-right':
-                    x = canvas.width - watermarkWidth - padding;
-                    y = canvas.height - watermarkHeight - padding;
-                    break;
-                case 'center':
-                    x = (canvas.width - watermarkWidth) / 2;
-                    y = (canvas.height - watermarkHeight) / 2;
-                    break;
-            }
-            
-            // Draw watermark
-            ctx.drawImage(watermark, x, y, watermarkWidth, watermarkHeight);
-            
-            canvas.toBlob(function(blob) {
-                const url = URL.createObjectURL(blob);
-                currentImageData = {
-                    ...currentImageData,
-                    url: url,
-                    size: blob.size
-                };
-                
-                displayImage(url);
-                addToImageHistory();
-                showNotification('Watermark added successfully', 'success');
-            }, 'image/jpeg', 0.9);
-        }
-    }
-    
-    img.onload = checkImagesLoaded;
-    watermark.onload = checkImagesLoaded;
-    
-    img.src = currentImageData.url;
-    watermark.src = watermarkUrl;
-}
-
-// Add image watermark for download (FIXED)
-function addImageWatermarkForDownload(watermarkUrl, position, opacity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    const watermark = new Image();
-    
-    let loadedImages = 0;
-    
-    function checkImagesLoaded() {
-        loadedImages++;
-        if (loadedImages === 2) {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            // Set watermark opacity
-            ctx.globalAlpha = opacity;
-            
-            // Calculate position
-            let x, y;
-            const padding = 20;
-            const watermarkWidth = watermark.width;
-            const watermarkHeight = watermark.height;
-            
-            switch(position) {
-                case 'top-left':
-                    x = padding;
-                    y = padding;
-                    break;
-                case 'top-right':
-                    x = canvas.width - watermarkWidth - padding;
-                    y = padding;
-                    break;
-                case 'bottom-left':
-                    x = padding;
-                    y = canvas.height - watermarkHeight - padding;
-                    break;
-                case 'bottom-right':
-                    x = canvas.width - watermarkWidth - padding;
-                    y = canvas.height - watermarkHeight - padding;
-                    break;
-                case 'center':
-                    x = (canvas.width - watermarkWidth) / 2;
-                    y = (canvas.height - watermarkHeight) / 2;
-                    break;
-            }
-            
-            // Draw watermark
-            ctx.drawImage(watermark, x, y, watermarkWidth, watermarkHeight);
-            
-            canvas.toBlob(function(blob) {
-                const originalName = currentImageData ? currentImageData.name : 'image';
-                const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-                downloadBlob(blob, `watermarked_${nameWithoutExt}.jpeg`);
-                showNotification('Watermarked image downloaded successfully', 'success');
-            }, 'image/jpeg', 0.9);
-        }
-    }
-    
-    img.onload = checkImagesLoaded;
-    watermark.onload = checkImagesLoaded;
-    
-    img.src = currentImageData.url;
-    watermark.src = watermarkUrl;
-}
-
-function applyFilter(filter, intensity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        // Get image data
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Apply filter
-        switch(filter) {
-            case 'grayscale':
-                for (let i = 0; i < data.length; i += 4) {
-                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    data[i] = gray;
-                    data[i + 1] = gray;
-                    data[i + 2] = gray;
-                }
-                break;
-            case 'sepia':
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    
-                    data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
-                    data[i + 1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
-                    data[i + 2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
-                }
-                break;
-            case 'invert':
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = 255 - data[i];
-                    data[i + 1] = 255 - data[i + 1];
-                    data[i + 2] = 255 - data[i + 2];
-                }
-                break;
-            case 'blur':
-                // Simple box blur
-                const blurRadius = Math.round(intensity * 10);
-                const tempData = new Uint8ClampedArray(data);
-                
-                for (let y = 0; y < canvas.height; y++) {
-                    for (let x = 0; x < canvas.width; x++) {
-                        let r = 0, g = 0, b = 0, a = 0;
-                        let count = 0;
-                        
-                        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
-                            for (let dx = -blurRadius; dx <= blurRadius; dx++) {
-                                const ny = y + dy;
-                                const nx = x + dx;
+                    <!-- Image Preview and Controls -->
+                    <div class="lg:col-span-3">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-semibold">Preview</h2>
                                 
-                                if (ny >= 0 && ny < canvas.height && nx >= 0 && nx < canvas.width) {
-                                    const idx = (ny * canvas.width + nx) * 4;
-                                    r += tempData[idx];
-                                    g += tempData[idx + 1];
-                                    b += tempData[idx + 2];
-                                    a += tempData[idx + 3];
-                                    count++;
-                                }
-                            }
-                        }
+                                <div class="flex space-x-2 mt-4">
+                                    <button id="clear-screen" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                                        Clear Screen
+                                    </button>
+                                    <button id="reset-image" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors hidden">
+                                        Reset
+                                    </button>
+                                </div>                        
+
+                                <div class="flex space-x-2">
+                                    <button id="compare-toggle" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
+                                        <i class="fas fa-columns mr-1"></i>Compare
+                                    </button>
+                                    <button id="reset-image" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
+                                        <i class="fas fa-undo mr-1"></i>Reset
+                                    </button>
+                                    <button id="zoom-in" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button id="zoom-out" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                    <button id="zoom-fit" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                        <i class="fas fa-expand"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="image-preview-container" class="min-h-[300px] flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden relative">
+                                <div class="text-center text-gray-500 dark:text-gray-400">
+                                    <i class="fas fa-image text-4xl mb-2"></i>
+                                    <p>No image selected</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Tool Controls -->
+                            <div id="tool-controls" class="mt-6 space-y-4">
+                                <!-- All image tool controls remain the same -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- QR Generator Tab -->
+            <div id="qr-generator-tab" class="tab-panel hidden">
+                <div class="h-full flex gap-6">
+                    <div class="w-1/3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                        <h1 class="text-2xl font-bold mb-4">QR Code Generator</h1>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Text or URL</label>
+                                <textarea
+                                    id="qr-text-input"
+                                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700"
+                                    rows="4"
+                                    placeholder="Enter text here"
+                                ></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Size</label>
+                                <input 
+                                    type="range"
+                                    id="qr-size-slider"
+                                    min="128" max="512" step="64"
+                                    value="256"
+                                    class="w-full"
+                                />
+                                <p class="text-center text-xs" id="qr-size-value">256px</p>
+                            </div>
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium mb-1">Dark Color</label>
+                                    <input type="color" id="qr-dark-color" value="#000000" class="w-full p-1 h-10 border-none rounded" />
+                                </div>
+                                <div class="flex-1">
+                                    <label class="block text-sm font-medium mb-1">Light Color</label>
+                                    <input type="color" id="qr-light-color" value="#ffffff" class="w-full p-1 h-10 border-none rounded" />
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="download-qr-png" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Download PNG</button>
+                                <button id="download-qr-svg" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Download SVG</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center justify-center" id="qr-preview">
+                        <div class="text-center text-gray-400">
+                            <i class="fas fa-qrcode text-8xl mb-4"></i>
+                            <p>Your QR Code will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings-tab" class="tab-panel hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h2 class="text-xl font-semibold mb-6">Settings</h2>
+                    <div class="space-y-6">
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Appearance</h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center justify-between">
+                                    <span>Dark Mode</span>
+                                    <div class="relative">
+                                        <input type="checkbox" id="dark-mode-toggle" class="sr-only">
+                                        <div class="w-10 h-6 bg-gray-300 dark:bg-indigo-600 rounded-full shadow-inner"></div>
+                                        <div class="dot absolute w-4 h-4 bg-white rounded-full shadow left-1 top-1 transition"></div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                         
-                        const idx = (y * canvas.width + x) * 4;
-                        data[idx] = r / count;
-                        data[idx + 1] = g / count;
-                        data[idx + 2] = b / count;
-                        data[idx + 3] = a / count;
-                    }
-                }
-                break;
-            case 'brightness':
-                const brightnessFactor = intensity * 2;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, data[i] * brightnessFactor);
-                    data[i + 1] = Math.min(255, data[i + 1] * brightnessFactor);
-                    data[i + 2] = Math.min(255, data[i + 2] * brightnessFactor);
-                }
-                break;
-            case 'contrast':
-                const contrastFactor = intensity * 2;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, Math.max(0, (data[i] - 128) * contrastFactor + 128));
-                    data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * contrastFactor + 128));
-                    data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * contrastFactor + 128));
-                }
-                break;
-        }
-        
-        // Put the modified image data back
-        ctx.putImageData(imageData, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification(`${filter.charAt(0).toUpperCase() + filter.slice(1)} filter applied`, 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Apply filter for download (FIXED)
-function applyFilterForDownload(filter, intensity) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        // Get image data
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // Apply filter
-        switch(filter) {
-            case 'grayscale':
-                for (let i = 0; i < data.length; i += 4) {
-                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-                    data[i] = gray;
-                    data[i + 1] = gray;
-                    data[i + 2] = gray;
-                }
-                break;
-            case 'sepia':
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    
-                    data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
-                    data[i + 1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
-                    data[i + 2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
-                }
-                break;
-            case 'invert':
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = 255 - data[i];
-                    data[i + 1] = 255 - data[i + 1];
-                    data[i + 2] = 255 - data[i + 2];
-                }
-                break;
-            case 'blur':
-                // Simple box blur
-                const blurRadius = Math.round(intensity * 10);
-                const tempData = new Uint8ClampedArray(data);
-                
-                for (let y = 0; y < canvas.height; y++) {
-                    for (let x = 0; x < canvas.width; x++) {
-                        let r = 0, g = 0, b = 0, a = 0;
-                        let count = 0;
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">Storage</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span>Storage Used</span>
+                                    <span id="storage-used" class="text-sm">0 KB</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="storage-bar" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                                <button id="clear-storage" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                    <i class="fas fa-trash mr-2"></i>Clear All Local Data
+                                </button>
+                            </div>
+                        </div>
                         
-                        for (let dy = -blurRadius; dy <= blurRadius; dy++) {
-                            for (let dx = -blurRadius; dx <= blurRadius; dx++) {
-                                const ny = y + dy;
-                                const nx = x + dx;
-                                
-                                if (ny >= 0 && ny < canvas.height && nx >= 0 && nx < canvas.width) {
-                                    const idx = (ny * canvas.width + nx) * 4;
-                                    r += tempData[idx];
-                                    g += tempData[idx + 1];
-                                    b += tempData[idx + 2];
-                                    a += tempData[idx + 3];
-                                    count++;
-                                }
-                            }
-                        }
-                        
-                        const idx = (y * canvas.width + x) * 4;
-                        data[idx] = r / count;
-                        data[idx + 1] = g / count;
-                        data[idx + 2] = b / count;
-                        data[idx + 3] = a / count;
-                    }
-                }
-                break;
-            case 'brightness':
-                const brightnessFactor = intensity * 2;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, data[i] * brightnessFactor);
-                    data[i + 1] = Math.min(255, data[i + 1] * brightnessFactor);
-                    data[i + 2] = Math.min(255, data[i + 2] * brightnessFactor);
-                }
-                break;
-            case 'contrast':
-                const contrastFactor = intensity * 2;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, Math.max(0, (data[i] - 128) * contrastFactor + 128));
-                    data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - 128) * contrastFactor + 128));
-                    data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - 128) * contrastFactor + 128));
-                }
-                break;
-        }
-        
-        // Put the modified image data back
-        ctx.putImageData(imageData, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `filtered_${nameWithoutExt}.jpeg`);
-            showNotification('Filtered image downloaded successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-function removeMetadata() {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            currentImageData = {
-                ...currentImageData,
-                url: url,
-                size: blob.size
-            };
-            
-            displayImage(url);
-            addToImageHistory();
-            showNotification('Metadata removed successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Remove metadata for download (FIXED)
-function removeMetadataForDownload() {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const originalName = currentImageData ? currentImageData.name : 'image';
-            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-            downloadBlob(blob, `metadata_removed_${nameWithoutExt}.jpeg`);
-            showNotification('Image without metadata downloaded successfully', 'success');
-        }, 'image/jpeg', 0.9);
-    };
-    
-    img.src = currentImageData.url;
-}
-
-// Clear screen function
-function clearScreen() {
-    const container = document.getElementById('image-preview-container');
-    container.innerHTML = `
-        <div class="flex items-center justify-center h-full">
-            <div class="text-center">
-                <i class="fas fa-image text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
-                <p id="upload-prompt" class="text-gray-500 dark:text-gray-400">No image loaded</p>
+                        <div>
+                            <h3 class="text-lg font-medium mb-3">About</h3>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">
+                                <p>Multi-Tool Web App v2.0 Enhanced</p>
+                                <p>A comprehensive tool for text editing and image manipulation</p>
+                                <p class="mt-2">© 2023 Multi-Tool Web App. All rights reserved.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    `;
-    
-    // Reset image data but keep original for potential reset
-    currentImageData = null;
-    
-    // Hide reset button since no image is loaded
-    document.getElementById('reset-image').classList.add('hidden');
-    
-    // Clear tool controls
-    const controlsContainer = document.getElementById('tool-controls');
-    if (controlsContainer) {
-        controlsContainer.innerHTML = '<p class="text-gray-500">Select an image and adjust settings for this tool.</p>';
-    }
-    
-    showNotification('Screen cleared', 'info');
-}
+    </main>
 
-// Zoom functions
-function zoomImage(factor) {
-    zoomLevel *= factor;
-    zoomLevel = Math.max(0.1, Math.min(5, zoomLevel));
-    
-    const previewImage = document.getElementById('preview-image');
-    if (previewImage) {
-        previewImage.style.transform = `scale(${zoomLevel})`;
-    }
-}
-
-function resetZoom() {
-    zoomLevel = 1;
-    const previewImage = document.getElementById('preview-image');
-    if (previewImage) {
-        previewImage.style.transform = `scale(${zoomLevel})`;
-    }
-}
-
-// Reset image to original
-function resetImage() {
-    if (originalImageData) {
-        currentImageData = {...originalImageData};
-        displayImage(originalImageData.url);
-        resetZoom();
-        resetImageHistory();
-        showNotification('Image reset to original', 'info');
-        
-        // Show both buttons when image is loaded
-        document.getElementById('reset-image').classList.remove('hidden');
-        const clearScreenBtn = document.getElementById('clear-screen');
-        if (clearScreenBtn) {
-            clearScreenBtn.classList.remove('hidden');
-        }
-    }
-}
-
-// Image history management
-function addToImageHistory() {
-    // Remove any states after the current index
-    imageHistory = imageHistory.slice(0, historyIndex + 1);
-    
-    // Add the new state
-    imageHistory.push({...currentImageData});
-    historyIndex++;
-    
-    // Limit history to 10 states
-    if (imageHistory.length > 10) {
-        imageHistory.shift();
-        historyIndex--;
-    }
-}
-
-function resetImageHistory() {
-    imageHistory = [{...currentImageData}];
-    historyIndex = 0;
-}
-
-// Recent files management
-function loadRecentFiles() {
-    const savedFiles = localStorage.getItem('recent-image-files');
-    if (savedFiles) {
-        try {
-            recentFiles = JSON.parse(savedFiles);
-        } catch (e) {
-            recentFiles = [];
-        }
-    }
-    
-    renderRecentFiles();
-}
-
-function addToRecentFiles(imageData) {
-    // Check if already in recent files
-    const existingIndex = recentFiles.findIndex(file => file.name === imageData.name);
-    if (existingIndex !== -1) {
-        recentFiles.splice(existingIndex, 1);
-    }
-    
-    // Add to beginning
-    recentFiles.unshift({
-        name: imageData.name,
-        url: imageData.url,
-        size: imageData.size,
-        type: imageData.type,
-        width: imageData.width,
-        height: imageData.height,
-        timestamp: Date.now()
-    });
-    
-    // Limit to 5 recent files
-    if (recentFiles.length > 5) {
-        recentFiles = recentFiles.slice(0, 5);
-    }
-    
-    // Save to localStorage
-    localStorage.setItem('recent-image-files', JSON.stringify(recentFiles));
-    
-    // Update UI
-    renderRecentFiles();
-}
-
-function renderRecentFiles() {
-    const container = document.getElementById('recent-files');
-    container.innerHTML = '';
-    
-    if (recentFiles.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-500">No recent files</p>';
-        return;
-    }
-    
-    recentFiles.forEach(file => {
-        const fileItem = document.createElement('div');
-        fileItem.className = 'flex items-center space-x-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer';
-        
-        const fileIcon = getFileIcon(file.type);
-        const fileSize = formatFileSize(file.size);
-        const fileDate = new Date(file.timestamp).toLocaleDateString();
-        
-        fileItem.innerHTML = `
-            <i class="${fileIcon} text-gray-500"></i>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium truncate">${file.name}</p>
-                <p class="text-xs text-gray-500">${fileSize} • ${fileDate}</p>
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto animate-bounce-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Keyboard Shortcuts</h3>
+                <button id="close-help" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-        `;
-        
-        fileItem.addEventListener('click', () => {
-            currentImageData = {...file};
-            originalImageData = {...file};
-            displayImage(file.url);
-            resetZoom();
-            resetImageHistory();
-            
-            // Show both buttons when image is loaded
-            document.getElementById('reset-image').classList.remove('hidden');
-            const clearScreenBtn = document.getElementById('clear-screen');
-            if (clearScreenBtn) {
-                clearScreenBtn.classList.remove('hidden');
-            }
-            
-            // Update upload prompt
-            document.getElementById('upload-prompt').textContent = file.name;
-        });
-        
-        container.appendChild(fileItem);
-    });
-}
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-medium mb-2">General</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Show Help</span>
+                            <kbd>?</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Toggle Dark Mode</span>
+                            <kbd>Ctrl+D</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Save Current Work</span>
+                            <kbd>Ctrl+S</kbd>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Notepad</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Bold</span>
+                            <kbd>Ctrl+B</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Italic</span>
+                            <kbd>Ctrl+I</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Underline</span>
+                            <kbd>Ctrl+U</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Undo</span>
+                            <kbd>Ctrl+Z</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Redo</span>
+                            <kbd>Ctrl+Y</kbd>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium mb-2">Image Tools</h4>
+                    <div class="space-y-1 text-sm">
+                        <div class="flex justify-between">
+                            <span>Zoom In</span>
+                            <kbd>Ctrl+</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Zoom Out</span>
+                            <kbd>Ctrl-</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Reset Zoom</span>
+                            <kbd>Ctrl+0</kbd>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Reset Image</span>
+                            <kbd>Ctrl+R</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-function getFileIcon(fileType) {
-    if (fileType.includes('jpeg') || fileType.includes('jpg')) {
-        return 'fas fa-file-image';
-    } else if (fileType.includes('png')) {
-        return 'fas fa-file-image';
-    } else if (fileType.includes('gif')) {
-        return 'fas fa-file-image';
-    } else if (fileType.includes('webp')) {
-        return 'fas fa-file-image';
-    } else if (fileType.includes('bmp')) {
-        return 'fas fa-file-image';
-    } else {
-        return 'fas fa-file';
-    }
-}
+    <!-- Notification Container -->
+    <div id="notification-container" class="fixed bottom-4 right-4 z-50"></div>
 
-// Drag and drop setup
-function setupDragAndDrop() {
-    const dropZone = document.getElementById('image-preview-container');
-    
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-    
-    function highlight() {
-        dropZone.classList.add('border-indigo-500');
-    }
-    
-    function unhighlight() {
-        dropZone.classList.remove('border-indigo-500');
-    }
-    
-    dropZone.addEventListener('drop', handleDrop, false);
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        
-        if (files.length > 0) {
-            const imageUpload = document.getElementById('image-upload');
-            imageUpload.files = files;
-            handleImageUpload({ target: { files: files } });
-        }
-    }
-}
-
-// --- Settings & Utility Functions ---
-
-function initializeSettings() {
-    document.getElementById('dark-mode-toggle').addEventListener('change', toggleTheme);
-    document.getElementById('clear-storage').addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear ALL local data? This action cannot be undone.')) {
-            localStorage.clear();
-            showNotification('All local data cleared', 'info');
-            setTimeout(() => location.reload(), 1000);
-        }
-    });
-}
-
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function updateProgressBar(percentage) {
-    const progressBar = document.getElementById('progress-bar');
-    if(progressBar) progressBar.style.width = `${percentage}%`;
-}
-
-function updateStorageInfo() {
-    let totalSize = 0;
-    for (let key in localStorage) {
-        if (localStorage.hasOwnProperty(key)) {
-            totalSize += (new Blob([localStorage[key]])).size;
-        }
-    }
-    
-    document.getElementById('storage-used').textContent = formatFileSize(totalSize);
-    const maxStorage = 5 * 1024 * 1024;
-    const percentage = Math.min(100, (totalSize / maxStorage) * 100);
-    document.getElementById('storage-bar').style.width = `${percentage}%`;
-}
-
-function showNotification(message, type = 'info') {
-    const container = document.getElementById('notification-container');
-    const notification = document.createElement('div');
-    notification.className = `mb-2 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 transform transition-all duration-300 translate-x-full`;
-
-    const typeClasses = {
-        success: 'bg-green-500 text-white',
-        error: 'bg-red-500 text-white',
-        info: 'bg-blue-500 text-white'
-    };
-    const iconClasses = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
-        info: 'fas fa-info-circle'
-    };
-
-    notification.className += ` ${typeClasses[type] || typeClasses.info}`;
-    notification.innerHTML = `<i class="${iconClasses[type] || iconClasses.info}"></i> <span>${message}</span>`;
-    
-    container.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-        notification.classList.add('translate-x-0');
-    }, 10);
-    
-    setTimeout(() => {
-        if (container.contains(notification)) {
-            container.removeChild(notification);
-        }
-    }, 3000);
-}
-
-// Help modal
-document.getElementById('help-toggle').addEventListener('click', toggleHelpModal);
-document.getElementById('close-help').addEventListener('click', toggleHelpModal);
-
-// Helper function to convert data URL to blob
-function dataURLtoBlob(dataURL) {
-    try {
-        // Check if dataURL is valid
-        if (!dataURL || typeof dataURL !== 'string') {
-            console.error('Invalid data URL: not a string or empty');
-            return new Blob([], { type: 'image/jpeg' });
-        }
-        
-        // Check if it's a data URL
-        if (!dataURL.startsWith('data:')) {
-            console.error('Invalid data URL: does not start with "data:"');
-            return new Blob([], { type: 'image/jpeg' });
-        }
-        
-        const arr = dataURL.split(',');
-        
-        // Check if split was successful
-        if (arr.length < 2) {
-            console.error('Invalid data URL: could not split properly');
-            return new Blob([], { type: 'image/jpeg' });
-        }
-        
-        const match = arr[0].match(/:(.*?);/);
-        
-        // Check if match was successful
-        if (!match || match.length < 2) {
-            console.error('Invalid data URL format: could not extract MIME type');
-            return new Blob([], { type: 'image/jpeg' });
-        }
-        
-        const mime = match[1];
-        
-        // Check if we have the data part
-        if (!arr[1]) {
-            console.error('Invalid data URL: missing data part');
-            return new Blob([], { type: mime });
-        }
-        
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        
-        while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
-        }
-        
-        return new Blob([u8arr], { type: mime });
-    } catch (error) {
-        console.error('Error converting data URL to blob:', error);
-        // Return a default blob or handle the error appropriately
-        return new Blob([], { type: 'image/jpeg' });
-    }
-}
+    <script src="js/app.js"></script>
+    <script src="js/qr.js"></script>
+</body>
+</html>
