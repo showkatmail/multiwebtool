@@ -565,9 +565,9 @@ function showToolControls(tool) {
         case 'compress':
             showCompressControls(controlsContainer);
             break;
-        case 'convert':
-            showConvertControls(controlsContainer);
-            break;
+                                                             case 'convert':
+                                                       showConvertControls(controlsContainer);
+                                                    break;
         case 'crop':
             showCropControls(controlsContainer);
             break;
@@ -1155,7 +1155,7 @@ function compressImageForDownload(quality) {
     img.src = currentImageData.url;
 }
 
-// Show convert controls
+                                          // Show convert controls
 function showConvertControls(container) {
     container.innerHTML = `
         <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
@@ -1167,7 +1167,24 @@ function showConvertControls(container) {
                     <option value="png">PNG</option>
                     <option value="webp">WebP</option>
                     <option value="bmp">BMP</option>
+                    <option value="pdf">PDF</option>
                 </select>
+            </div>
+            <div id="pdf-options" class="mb-4 hidden">
+                <label class="block text-sm font-medium mb-1">PDF Page Size</label>
+                <select id="pdf-page-size" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                    <option value="a4">A4</option>
+                    <option value="letter">Letter</option>
+                    <option value="legal">Legal</option>
+                    <option value="fit">Fit to Image</option>
+                </select>
+                <div class="mt-2">
+                    <label class="block text-sm font-medium mb-1">Orientation</label>
+                    <select id="pdf-orientation" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                    </select>
+                </div>
             </div>
             <button id="apply-convert" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
                 Convert & Download
@@ -1175,11 +1192,186 @@ function showConvertControls(container) {
         </div>
     `;
     
+    document.getElementById('convert-format').addEventListener('change', function() {
+        const pdfOptions = document.getElementById('pdf-options');
+        if (this.value === 'pdf') {
+            pdfOptions.classList.remove('hidden');
+        } else {
+            pdfOptions.classList.add('hidden');
+        }
+    });
+    
     document.getElementById('apply-convert').addEventListener('click', function() {
         const format = document.getElementById('convert-format').value;
         convertImage(format);
     });
 }
+
+// Convert image
+function convertImage(format) {
+    if (!currentImageData) {
+        showNotification('No image loaded', 'error');
+        return;
+    }
+    
+    if (format === 'pdf') {
+        convertImageToPDF();
+        return;
+    }
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        
+        canvas.toBlob(function(blob) {
+            const originalName = currentImageData.name ? currentImageData.name.replace(/\.[^/.]+$/, '') : 'converted-image';
+            downloadBlob(blob, `${originalName}.${format}`);
+            showNotification(`Image converted to ${format.toUpperCase()}`, 'success');
+        }, `image/${format}`);
+    };
+    
+    img.src = currentImageData.url;
+}
+
+// Convert image to PDF
+function convertImageToPDF() {
+    if (!currentImageData) {
+        showNotification('No image loaded', 'error');
+        return;
+    }
+    
+    const pageSize = document.getElementById('pdf-page-size').value;
+    const orientation = document.getElementById('pdf-orientation').value;
+    
+    // Check if jsPDF is available
+    if (typeof window.jspdf === 'undefined') {
+        showNotification('PDF library not loaded. Please refresh the page.', 'error');
+        return;
+    }
+    
+    const img = new Image();
+    
+    img.onload = function() {
+        try {
+            // Create a canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match image
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            // Fill with white background first
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw the image
+            ctx.drawImage(img, 0, 0, img.width, img.height);
+            
+            // Get the image data as JPEG base64
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            
+            // Create PDF using jsPDF
+            const { jsPDF } = window.jspdf;
+            let pdf;
+            
+            if (pageSize === 'fit') {
+                // Fit to image size
+                // Convert pixels to mm (assuming 96 DPI: 1 inch = 25.4mm, 96 pixels = 25.4mm)
+                const pxToMm = 25.4 / 96;
+                const imgWidthMM = img.width * pxToMm;
+                const imgHeightMM = img.height * pxToMm;
+                
+                // Determine orientation based on image dimensions
+                const pdfOrientation = imgWidthMM > imgHeightMM ? 'landscape' : 'portrait';
+                
+                pdf = new jsPDF({
+                    orientation: pdfOrientation,
+                    unit: 'mm',
+                    format: [imgWidthMM, imgHeightMM],
+                    compress: true
+                });
+                
+                // Add image to fill entire page
+                pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthMM, imgHeightMM, undefined, 'FAST');
+                
+            } else {
+                // Standard page size
+                pdf = new jsPDF({
+                    orientation: orientation,
+                    unit: 'mm',
+                    format: pageSize,
+                    compress: true
+                });
+                
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                // Calculate image dimensions to fit page with margins
+                const margin = 10; // 10mm margin
+                const maxWidth = pageWidth - (margin * 2);
+                const maxHeight = pageHeight - (margin * 2);
+                
+                const imgAspectRatio = img.width / img.height;
+                const pageAspectRatio = maxWidth / maxHeight;
+                
+                let finalWidth, finalHeight, xPos, yPos;
+                
+                if (imgAspectRatio > pageAspectRatio) {
+                    // Image is wider relative to page
+                    finalWidth = maxWidth;
+                    finalHeight = maxWidth / imgAspectRatio;
+                } else {
+                    // Image is taller relative to page
+                    finalHeight = maxHeight;
+                    finalWidth = maxHeight * imgAspectRatio;
+                }
+                
+                // Center the image
+                xPos = (pageWidth - finalWidth) / 2;
+                yPos = (pageHeight - finalHeight) / 2;
+                
+                // Add image to PDF
+                pdf.addImage(imgData, 'JPEG', xPos, yPos, finalWidth, finalHeight, undefined, 'FAST');
+            }
+            
+            // Generate filename
+            const originalName = currentImageData.name ? currentImageData.name.replace(/\.[^/.]+$/, '') : 'converted-image';
+            const filename = `${originalName}.pdf`;
+            
+            // Save the PDF
+            pdf.save(filename);
+            
+            showNotification('PDF created and downloaded successfully!', 'success');
+            
+        } catch (error) {
+            console.error('PDF Creation Error:', error);
+            showNotification('Error creating PDF: ' + error.message, 'error');
+        }
+    };
+    
+    img.onerror = function() {
+        showNotification('Failed to load image for PDF conversion', 'error');
+    };
+    
+    // Handle CORS if needed
+    if (!currentImageData.url.startsWith('data:')) {
+        img.crossOrigin = 'Anonymous';
+    }
+    
+    // Load the image
+    img.src = currentImageData.url;
+}
+
+
+
+
+
 
 // Show watermark controls
 function showWatermarkControls(container) {
@@ -1485,147 +1677,98 @@ function showMetadataControls(container) {
     });
 }
 
-// Show merge controls
+// Show image merger controls
 function showMergeControls(container) {
     container.innerHTML = `
         <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
             <h3 class="text-lg font-medium mb-4">Image Merger</h3>
             <div class="mb-4">
-                <label class="block text-sm font-medium mb-2">Select Images to Merge</label>
-                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 mb-4">
-                    <input type="file" id="merge-image-upload" accept="image/*" multiple class="hidden">
-                    <button id="merge-upload-btn" class="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                        Add Images
-                    </button>
-                </div>
-                <div id="merge-images-container" class="grid grid-cols-3 gap-2 mb-4 max-h-60 overflow-y-auto">
-                    <!-- Selected images will be displayed here -->
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Layout</label>
-                    <select id="merge-layout" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
-                        <option value="grid">Grid</option>
-                        <option value="horizontal">Horizontal</option>
-                        <option value="vertical">Vertical</option>
-                    </select>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Background Color</label>
-                    <input type="color" id="merge-bg-color" class="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="#ffffff">
-                </div>
-                <div class="flex space-x-2">
-                    <button id="merge-images" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
-                        Merge Images
-                    </button>
-                    <button id="download-merged" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
-                        Download
-                    </button>
-                </div>
+                <label class="block text-sm font-medium mb-1">Select Images to Merge</label>
+                <input type="file" id="merge-images" accept="image/*" multiple class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Merge Direction</label>
+                <select id="merge-direction" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                    <option value="horizontal">Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                    <option value="grid">Grid (2x2)</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1">Spacing (px)</label>
+                <input type="number" id="merge-spacing" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800" value="0" min="0">
+            </div>
+            <div id="merge-preview" class="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg min-h-[100px] flex items-center justify-center">
+                <p class="text-gray-500">Select images to preview</p>
+            </div>
+            <div class="flex space-x-2">
+                <button id="merge-images-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors" disabled>
+                    Merge Images
+                </button>
+                <button id="download-merged" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors" disabled>
+                    Download
+                </button>
             </div>
         </div>
     `;
     
     // Add event listeners
-    document.getElementById('merge-upload-btn').addEventListener('click', () => {
-        document.getElementById('merge-image-upload').click();
-    });
-    
-    document.getElementById('merge-image-upload').addEventListener('change', handleMergeImageUpload);
-    document.getElementById('merge-images').addEventListener('click', mergeSelectedImages);
+    document.getElementById('merge-images').addEventListener('change', handleMergeImageSelection);
+    document.getElementById('merge-images-btn').addEventListener('click', mergeSelectedImages);
     document.getElementById('download-merged').addEventListener('click', downloadMergedImage);
-    
-    // Display any previously selected images
-    updateMergeImagesDisplay();
 }
 
-// Handle merge image upload
-function handleMergeImageUpload(e) {
-    const files = Array.from(e.target.files);
+// Handle merge image selection
+function handleMergeImageSelection(e) {
+    const files = e.target.files;
+    if (files.length < 2) {
+        showNotification('Please select at least 2 images to merge', 'error');
+        return;
+    }
     
-    files.forEach(file => {
+    selectedMergeImages = [];
+    const previewContainer = document.getElementById('merge-preview');
+    previewContainer.innerHTML = '';
+    
+    let loadedCount = 0;
+    const imagePromises = [];
+    
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
         const reader = new FileReader();
         
-        reader.onload = function(event) {
-            const img = new Image();
-            img.onload = function() {
-                const imageData = {
-                    id: Date.now() + Math.random(),
-                    url: event.target.result,
-                    name: file.name,
-                    width: img.width,
-                    height: img.height
+        const promise = new Promise((resolve) => {
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    selectedMergeImages.push({
+                        url: event.target.result,
+                        width: img.width,
+                        height: img.height,
+                        name: file.name
+                    });
+                    
+                    // Add thumbnail to preview
+                    const thumb = document.createElement('img');
+                    thumb.src = event.target.result;
+                    thumb.className = 'w-16 h-16 object-cover rounded m-1';
+                    previewContainer.appendChild(thumb);
+                    
+                    loadedCount++;
+                    if (loadedCount === files.length) {
+                        document.getElementById('merge-images-btn').disabled = false;
+                    }
+                    resolve();
                 };
-                
-                selectedMergeImages.push(imageData);
-                updateMergeImagesDisplay();
+                img.src = event.target.result;
             };
-            img.src = event.target.result;
-        };
+            reader.readAsDataURL(file);
+        });
         
-        reader.readAsDataURL(file);
-    });
-}
-
-// Update the display of selected merge images
-function updateMergeImagesDisplay() {
-    const container = document.getElementById('merge-images-container');
-    container.innerHTML = '';
+        imagePromises.push(promise);
+    }
     
-    selectedMergeImages.forEach((image, index) => {
-        const imageContainer = document.createElement('div');
-        imageContainer.className = 'relative group';
-        imageContainer.innerHTML = `
-            <img src="${image.url}" alt="${image.name}" class="w-full h-24 object-cover rounded">
-            <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded">
-                <button class="delete-merge-image bg-red-500 hover:bg-red-600 text-white p-1 rounded mr-1" data-index="${index}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-                <button class="swap-left-merge-image bg-blue-500 hover:bg-blue-600 text-white p-1 rounded mr-1" data-index="${index}" ${index === 0 ? 'disabled' : ''}>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-                <button class="swap-right-merge-image bg-blue-500 hover:bg-blue-600 text-white p-1 rounded" data-index="${index}" ${index === selectedMergeImages.length - 1 ? 'disabled' : ''}>
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(imageContainer);
-    });
-    
-    // Add event listeners for delete and swap buttons
-    document.querySelectorAll('.delete-merge-image').forEach(button => {
-        button.addEventListener('click', function() {
-            const index = parseInt(this.getAttribute('data-index'));
-            selectedMergeImages.splice(index, 1);
-            updateMergeImagesDisplay();
-        });
-    });
-    
-    document.querySelectorAll('.swap-left-merge-image').forEach(button => {
-        button.addEventListener('click', function() {
-            const index = parseInt(this.getAttribute('data-index'));
-            if (index > 0) {
-                [selectedMergeImages[index], selectedMergeImages[index - 1]] = [selectedMergeImages[index - 1], selectedMergeImages[index]];
-                updateMergeImagesDisplay();
-            }
-        });
-    });
-    
-    document.querySelectorAll('.swap-right-merge-image').forEach(button => {
-        button.addEventListener('click', function() {
-            const index = parseInt(this.getAttribute('data-index'));
-            if (index < selectedMergeImages.length - 1) {
-                [selectedMergeImages[index], selectedMergeImages[index + 1]] = [selectedMergeImages[index + 1], selectedMergeImages[index]];
-                updateMergeImagesDisplay();
-            }
-        });
-    });
+    Promise.all(imagePromises);
 }
 
 // Merge selected images
@@ -1635,209 +1778,207 @@ function mergeSelectedImages() {
         return;
     }
     
-    const layout = document.getElementById('merge-layout').value;
-    const bgColor = document.getElementById('merge-bg-color').value;
+    const direction = document.getElementById('merge-direction').value;
+    const spacing = parseInt(document.getElementById('merge-spacing').value) || 0;
     
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
-    // Calculate dimensions based on layout
-    if (layout === 'grid') {
-        // Calculate grid dimensions
-        const cols = Math.ceil(Math.sqrt(selectedMergeImages.length));
-        const rows = Math.ceil(selectedMergeImages.length / cols);
-        
-        // Find the smallest aspect ratio among all images
-        let minAspectRatio = Infinity;
-        selectedMergeImages.forEach(image => {
-            const aspectRatio = image.width / image.height;
-            if (aspectRatio < minAspectRatio) {
-                minAspectRatio = aspectRatio;
-            }
-        });
-        
-        // Set canvas dimensions (assuming each cell is 300px wide)
-        const cellWidth = 300;
-        const cellHeight = cellWidth / minAspectRatio;
-        canvas.width = cols * cellWidth;
-        canvas.height = rows * cellHeight;
-        
-        // Fill background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw images in grid
-        let loadedImages = 0;
-        selectedMergeImages.forEach((imageData, index) => {
+    // Calculate canvas dimensions
+    let totalWidth = 0;
+    let totalHeight = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    
+    selectedMergeImages.forEach(img => {
+        maxWidth = Math.max(maxWidth, img.width);
+        maxHeight = Math.max(maxHeight, img.height);
+        totalWidth += img.width;
+        totalHeight += img.height;
+    });
+    
+    if (direction === 'horizontal') {
+        canvas.width = totalWidth + (spacing * (selectedMergeImages.length - 1));
+        canvas.height = maxHeight;
+    } else if (direction === 'vertical') {
+        canvas.width = maxWidth;
+        canvas.height = totalHeight + (spacing * (selectedMergeImages.length - 1));
+    } else if (direction === 'grid') {
+        // Limit to 4 images for grid
+        const gridImages = selectedMergeImages.slice(0, 4);
+        canvas.width = (maxWidth * 2) + spacing;
+        canvas.height = (maxHeight * 2) + spacing;
+    }
+    
+    // Fill with white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw images
+    let currentX = 0;
+    let currentY = 0;
+    
+    if (direction === 'horizontal') {
+        selectedMergeImages.forEach(imgData => {
             const img = new Image();
             img.onload = function() {
-                const col = index % cols;
-                const row = Math.floor(index / cols);
-                const x = col * cellWidth;
-                const y = row * cellHeight;
-                
-                // Calculate dimensions to maintain aspect ratio
-                let drawWidth = cellWidth;
-                let drawHeight = cellHeight;
-                const aspectRatio = img.width / img.height;
-                
-                if (aspectRatio > minAspectRatio) {
-                    drawHeight = cellWidth / aspectRatio;
-                } else {
-                    drawWidth = cellHeight * aspectRatio;
-                }
-                
-                // Center the image in the cell
-                const offsetX = (cellWidth - drawWidth) / 2;
-                const offsetY = (cellHeight - drawHeight) / 2;
-                
-                ctx.drawImage(img, x + offsetX, y + offsetY, drawWidth, drawHeight);
-                
-                loadedImages++;
-                if (loadedImages === selectedMergeImages.length) {
-                    // All images loaded, create blob and display
-                    canvas.toBlob(function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        mergedImageData = {
-                            url: url,
-                            width: canvas.width,
-                            height: canvas.height,
-                            size: blob.size
-                        };
-                        displayImage(url);
-                        addToImageHistory();
-                        showNotification('Images merged successfully', 'success');
-                    }, 'image/jpeg', 0.9);
-                }
+                const y = (canvas.height - img.height) / 2;
+                ctx.drawImage(img, currentX, y);
+                currentX += img.width + spacing;
             };
-            img.src = imageData.url;
+            img.src = imgData.url;
         });
-    } else if (layout === 'horizontal') {
-        // Find the smallest height among all images
-        let minHeight = Infinity;
-        selectedMergeImages.forEach(image => {
-            if (image.height < minHeight) {
-                minHeight = image.height;
-            }
-        });
-        
-        // Calculate total width
-        let totalWidth = 0;
-        selectedMergeImages.forEach(image => {
-            const aspectRatio = image.width / image.height;
-            totalWidth += minHeight * aspectRatio;
-        });
-        
-        canvas.width = totalWidth;
-        canvas.height = minHeight;
-        
-        // Fill background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw images horizontally
-        let loadedImages = 0;
-        let currentX = 0;
-        
-        selectedMergeImages.forEach(imageData => {
+    } else if (direction === 'vertical') {
+        selectedMergeImages.forEach(imgData => {
             const img = new Image();
             img.onload = function() {
-                const aspectRatio = img.width / img.height;
-                const drawWidth = minHeight * aspectRatio;
-                
-                ctx.drawImage(img, currentX, 0, drawWidth, minHeight);
-                currentX += drawWidth;
-                
-                loadedImages++;
-                if (loadedImages === selectedMergeImages.length) {
-                    // All images loaded, create blob and display
-                    canvas.toBlob(function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        mergedImageData = {
-                            url: url,
-                            width: canvas.width,
-                            height: canvas.height,
-                            size: blob.size
-                        };
-                        displayImage(url);
-                        addToImageHistory();
-                        showNotification('Images merged successfully', 'success');
-                    }, 'image/jpeg', 0.9);
-                }
+                const x = (canvas.width - img.width) / 2;
+                ctx.drawImage(img, x, currentY);
+                currentY += img.height + spacing;
             };
-            img.src = imageData.url;
+            img.src = imgData.url;
         });
-    } else if (layout === 'vertical') {
-        // Find the smallest width among all images
-        let minWidth = Infinity;
-        selectedMergeImages.forEach(image => {
-            if (image.width < minWidth) {
-                minWidth = image.width;
-            }
-        });
+    } else if (direction === 'grid') {
+        const gridImages = selectedMergeImages.slice(0, 4);
+        const positions = [
+            { x: 0, y: 0 },
+            { x: maxWidth + spacing, y: 0 },
+            { x: 0, y: maxHeight + spacing },
+            { x: maxWidth + spacing, y: maxHeight + spacing }
+        ];
         
-        // Calculate total height
-        let totalHeight = 0;
-        selectedMergeImages.forEach(image => {
-            const aspectRatio = image.height / image.width;
-            totalHeight += minWidth * aspectRatio;
-        });
-        
-        canvas.width = minWidth;
-        canvas.height = totalHeight;
-        
-        // Fill background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Draw images vertically
-        let loadedImages = 0;
-        let currentY = 0;
-        
-        selectedMergeImages.forEach(imageData => {
+        gridImages.forEach((imgData, index) => {
             const img = new Image();
             img.onload = function() {
-                const aspectRatio = img.height / img.width;
-                const drawHeight = minWidth * aspectRatio;
-                
-                ctx.drawImage(img, 0, currentY, minWidth, drawHeight);
-                currentY += drawHeight;
-                
-                loadedImages++;
-                if (loadedImages === selectedMergeImages.length) {
-                    // All images loaded, create blob and display
-                    canvas.toBlob(function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        mergedImageData = {
-                            url: url,
-                            width: canvas.width,
-                            height: canvas.height,
-                            size: blob.size
-                        };
-                        displayImage(url);
-                        addToImageHistory();
-                        showNotification('Images merged successfully', 'success');
-                    }, 'image/jpeg', 0.9);
-                }
+                const pos = positions[index];
+                ctx.drawImage(img, pos.x, pos.y);
             };
-            img.src = imageData.url;
+            img.src = imgData.url;
         });
     }
+    
+    // Convert to blob after a short delay to ensure all images are drawn
+    setTimeout(() => {
+        canvas.toBlob(function(blob) {
+            const url = URL.createObjectURL(blob);
+            mergedImageData = {
+                url: url,
+                name: 'merged-image.jpeg',
+                size: blob.size,
+                type: 'image/jpeg',
+                width: canvas.width,
+                height: canvas.height
+            };
+            
+            currentImageData = {...mergedImageData};
+            displayImage(url);
+            addToImageHistory();
+            showNotification('Images merged successfully', 'success');
+            
+            // Show reset button
+            document.getElementById('reset-image').classList.remove('hidden');
+            
+            // Enable download button
+            document.getElementById('download-merged').disabled = false;
+        }, 'image/jpeg', 0.9);
+    }, 500);
 }
 
-// Download merged image
+// Download merged image (FIXED)
 function downloadMergedImage() {
-    if (!mergedImageData) {
+    if (!mergedImageData && !selectedMergeImages.length) {
         showNotification('No merged image to download', 'error');
         return;
     }
     
-    const link = document.createElement('a');
-    link.href = mergedImageData.url;
-    link.download = 'merged-image.jpeg';
-    link.click();
+    const direction = document.getElementById('merge-direction').value;
+    const spacing = parseInt(document.getElementById('merge-spacing').value) || 0;
     
-    showNotification('Merged image downloaded successfully', 'success');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Calculate canvas dimensions
+    let totalWidth = 0;
+    let totalHeight = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    
+    selectedMergeImages.forEach(img => {
+        maxWidth = Math.max(maxWidth, img.width);
+        maxHeight = Math.max(maxHeight, img.height);
+        totalWidth += img.width;
+        totalHeight += img.height;
+    });
+    
+    if (direction === 'horizontal') {
+        canvas.width = totalWidth + (spacing * (selectedMergeImages.length - 1));
+        canvas.height = maxHeight;
+    } else if (direction === 'vertical') {
+        canvas.width = maxWidth;
+        canvas.height = totalHeight + (spacing * (selectedMergeImages.length - 1));
+    } else if (direction === 'grid') {
+        // Limit to 4 images for grid
+        const gridImages = selectedMergeImages.slice(0, 4);
+        canvas.width = (maxWidth * 2) + spacing;
+        canvas.height = (maxHeight * 2) + spacing;
+    }
+    
+    // Fill with white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw images
+    let currentX = 0;
+    let currentY = 0;
+    
+    if (direction === 'horizontal') {
+        selectedMergeImages.forEach(imgData => {
+            const img = new Image();
+            img.onload = function() {
+                const y = (canvas.height - img.height) / 2;
+                ctx.drawImage(img, currentX, y);
+                currentX += img.width + spacing;
+            };
+            img.src = imgData.url;
+        });
+    } else if (direction === 'vertical') {
+        selectedMergeImages.forEach(imgData => {
+            const img = new Image();
+            img.onload = function() {
+                const x = (canvas.width - img.width) / 2;
+                ctx.drawImage(img, x, currentY);
+                currentY += img.height + spacing;
+            };
+            img.src = imgData.url;
+        });
+    } else if (direction === 'grid') {
+        const gridImages = selectedMergeImages.slice(0, 4);
+        const positions = [
+            { x: 0, y: 0 },
+            { x: maxWidth + spacing, y: 0 },
+            { x: 0, y: maxHeight + spacing },
+            { x: maxWidth + spacing, y: maxHeight + spacing }
+        ];
+        
+        gridImages.forEach((imgData, index) => {
+            const img = new Image();
+            img.onload = function() {
+                const pos = positions[index];
+                ctx.drawImage(img, pos.x, pos.y);
+            };
+            img.src = imgData.url;
+        });
+    }
+    
+    // Convert to blob after a short delay to ensure all images are drawn
+    setTimeout(() => {
+        canvas.toBlob(function(blob) {
+            const originalName = selectedMergeImages.length > 0 ? selectedMergeImages[0].name : 'merged-image';
+            const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+            downloadBlob(blob, `merged_${nameWithoutExt}.jpeg`);
+            showNotification('Merged image downloaded successfully', 'success');
+        }, 'image/jpeg', 0.9);
+    }, 500);
 }
 
 // Show batch process controls
@@ -1886,7 +2027,7 @@ function showBatchControls(container) {
 }
 
 // Handle batch image selection
-function handleBatchImageSelection(e) {
+                                function handleBatchImageSelection(e) {
     const files = e.target.files;
     if (files.length === 0) return;
     
@@ -2207,28 +2348,7 @@ function processBatchWatermark(imageData, index) {
     img.src = imageData.url;
 }
 
-// Image manipulation functions
-function convertImage(format) {
-    if (!currentImageData) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    
-    img.onload = function() {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        
-        canvas.toBlob(function(blob) {
-            const url = URL.createObjectURL(blob);
-            downloadBlob(blob, `converted-image.${format}`);
-            showNotification(`Image converted to ${format.toUpperCase()}`, 'success');
-        }, `image/${format}`);
-    };
-    
-    img.src = currentImageData.url;
-}
+// Image TextWatermak functions
 
 function addTextWatermark(text, fontSize, color, position, opacity) {
     if (!currentImageData) return;
