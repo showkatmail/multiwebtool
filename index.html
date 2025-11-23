@@ -3,26 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Tool Web App - Enhanced</title>
-    <script src="https://cdn.tailwindcss.com"></script> 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
+    <title>Multi-Tool Web App</title>
     
-<!-- QRCode Library -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-  
- <!-- Cropper.js Library -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
- <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+ <!-- LOCAL CSS FILES -->
+   <!--
+    <link rel="stylesheet" href="libs/tailwind.min.css">
+    <link rel="stylesheet" href="libs/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="libs/cropper.min.css">
+-->
 
 
-<!-- Link to your local jspdf file -->
-   <!-- <script src="js/jspdf.umd.min.js"></script> -->
+<!-- Main Stylesheet -->
+<link rel="stylesheet" href="css/style.css">
 
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-<script>
-       // Tailwind CSS configuration remains here for CDN build process
+<!-- QRCode Generator -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+   
+    
+    <!-- Tailwind CSS - For offline, download and use local file -->
+    
+<script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -53,8 +66,7 @@
                 }
             }
         }
-</script>
-
+    </script>
 </head>
 <body class="h-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <!-- Header -->
@@ -63,7 +75,6 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center">
                     <i class="fas fa-tools mr-2"></i>Multi-Tool Web App
-                    <span class="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-2 py-1 rounded-full">Enhanced</span>
                 </h1>
                 <div class="flex items-center space-x-4">
                     <button id="help-toggle" class="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors tooltip">
@@ -77,7 +88,6 @@
                 </div>
             </div>
         </div>
-        <!-- Progress Bar -->
         <div class="h-1 bg-gray-200 dark:bg-gray-700">
             <div id="progress-bar" class="progress-bar"></div>
         </div>
@@ -105,10 +115,10 @@
 
         <!-- Tab Content -->
         <div class="tab-content">
-            <!-- Notepad Tab -->
+            <!-- Notepad Tab - ENHANCED -->
             <div id="notepad-tab" class="tab-panel hidden">
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <!-- Note Management UI -->
+                    <!-- Note Management -->
                     <div id="note-management" class="mb-4 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
                         <label for="note-selector" class="font-medium">Current Note:</label>
                         <select id="note-selector" class="flex-grow p-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700"></select>
@@ -176,6 +186,14 @@
                             <i class="fas fa-link"></i>
                             <span class="tooltip-text">Insert Link</span>
                         </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="insertImage" title="Insert Image">
+                            <i class="fas fa-image"></i>
+                            <span class="tooltip-text">Insert Image</span>
+                        </button>
+                        <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="insertTable" title="Insert Table">
+                            <i class="fas fa-table"></i>
+                            <span class="tooltip-text">Insert Table</span>
+                        </button>
                         <button class="editor-btn px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 tooltip" data-command="insertHorizontalRule" title="Horizontal Rule">
                             <i class="fas fa-minus"></i>
                             <span class="tooltip-text">Horizontal Rule</span>
@@ -194,49 +212,130 @@
                             <span class="tooltip-text">Redo <kbd>Ctrl+Y</kbd></span>
                         </button>
                     </div>
+
+                    <!-- Editor Content -->
                     <div id="editor" class="editor-content p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700" contenteditable="true">
                         Start typing your notes here...
                     </div>
-                    <div class="mt-4 flex justify-between">
+
+                    <!-- Enhanced Status Bar -->
+                    <div id="editor-status-bar" class="mt-2 text-xs text-gray-500 dark:text-gray-400 flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                        <span>Words: 0 | Characters: 0</span>
                         <div class="flex space-x-2">
+                            <button onclick="pinNote()" class="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 text-xs" title="Pin Note">
+                                <i class="fas fa-thumbtack"></i>
+                            </button>
+                            <button onclick="setNoteColor('#6366f1')" class="w-6 h-6 bg-indigo-500 rounded border border-gray-300" title="Blue"></button>
+                            <button onclick="setNoteColor('#10b981')" class="w-6 h-6 bg-green-500 rounded border border-gray-300" title="Green"></button>
+                            <button onclick="setNoteColor('#f59e0b')" class="w-6 h-6 bg-yellow-500 rounded border border-gray-300" title="Yellow"></button>
+                            <button onclick="setNoteColor('#ef4444')" class="w-6 h-6 bg-red-500 rounded border border-gray-300" title="Red"></button>
+                        </div>
+                    </div>
+
+                    <!-- Note Metadata -->
+                    <div id="note-metadata" class="mt-2 text-xs text-gray-500 dark:text-gray-400"></div>
+
+                    <!-- Primary Action Buttons -->
+                    <div class="mt-4 flex justify-between flex-wrap gap-2">
+                        <div class="flex space-x-2 flex-wrap gap-2">
                             <button id="clear-editor" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
                                 <i class="fas fa-trash mr-2"></i>Clear
                             </button>
                             <button id="word-count" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
-                                <i class="fas fa-calculator mr-2"></i>Word Count
+                                <i class="fas fa-calculator mr-2"></i>Statistics
                             </button>
                         </div>
-                        <div class="space-x-2">
+                        <div class="flex space-x-2 flex-wrap gap-2">
                             <button id="export-html" class="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors">
-                                <i class="fas fa-code mr-2"></i>Export HTML
+                                <i class="fas fa-code mr-2"></i>HTML
                             </button>
                             <button id="save-local" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
-                                <i class="fas fa-save mr-2"></i>Save All Notes
+                                <i class="fas fa-save mr-2"></i>Save
                             </button>
                             <button id="download-text" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
                                 <i class="fas fa-download mr-2"></i>Download
                             </button>
                         </div>
                     </div>
+
+                    <!-- Enhanced Toolbar Buttons -->
+                    <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h3 class="text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Enhanced Tools</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="showVersionHistory()" class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-history mr-1"></i>History
+                            </button>
+                            <button onclick="exportAsPDF()" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-file-pdf mr-1"></i>PDF
+                            </button>
+                            <button onclick="exportAsMarkdown()" class="px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fab fa-markdown mr-1"></i>Markdown
+                            </button>
+                            <button onclick="showFindReplace()" class="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-search mr-1"></i>Find
+                            </button>
+                            <button onclick="duplicateNote()" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-copy mr-1"></i>Duplicate
+                            </button>
+                            <button onclick="renameNote()" class="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-edit mr-1"></i>Rename
+                            </button>
+                            <button onclick="addTag()" class="px-3 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-tag mr-1"></i>Tag
+                            </button>
+                            <button onclick="shareNote()" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-share mr-1"></i>Share
+                            </button>
+                            <button onclick="showAnalyticsDashboard()" class="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-chart-bar mr-1"></i>Analytics
+                            </button>
+                            <button onclick="exportAllNotes()" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-file-export mr-1"></i>Export All
+                            </button>
+                            <button onclick="importNotes()" class="px-3 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm transition-colors">
+                                <i class="fas fa-file-import mr-1"></i>Import
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Enhanced Word Count Modal -->
                     <div id="word-count-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-bounce-in">
-                            <h3 class="text-lg font-semibold mb-4">Document Statistics</h3>
-                            <div class="space-y-2">
-                                <div class="flex justify-between">
-                                    <span>Words:</span>
-                                    <span id="word-count-value" class="font-medium">0</span>
+                            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                                <i class="fas fa-chart-line mr-2 text-indigo-600"></i>Document Statistics
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Words:</span>
+                                    <span id="word-count-value" class="font-bold text-indigo-600">0</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span>Characters:</span>
-                                    <span id="char-count-value" class="font-medium">0</span>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Characters:</span>
+                                    <span id="char-count-value" class="font-bold text-green-600">0</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span>Characters (no spaces):</span>
-                                    <span id="char-no-space-count-value" class="font-medium">0</span>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Characters (no spaces):</span>
+                                    <span id="char-no-space-count-value" class="font-bold text-blue-600">0</span>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span>Paragraphs:</span>
-                                    <span id="paragraph-count-value" class="font-medium">0</span>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Paragraphs:</span>
+                                    <span id="paragraph-count-value" class="font-bold text-purple-600">0</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Sentences:</span>
+                                    <span id="sentence-count-value" class="font-bold text-yellow-600">0</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Lines:</span>
+                                    <span id="line-count-value" class="font-bold text-red-600">0</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Reading Time:</span>
+                                    <span id="reading-time-value" class="font-bold text-teal-600">0 min</span>
+                                </div>
+                                <div class="flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
+                                    <span class="font-medium">Avg Word Length:</span>
+                                    <span id="avg-word-length-value" class="font-bold text-pink-600">0</span>
                                 </div>
                             </div>
                             <div class="mt-4 flex justify-end">
@@ -246,13 +345,82 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Version History Modal -->
+                    <div id="version-history-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold flex items-center">
+                                    <i class="fas fa-history mr-2 text-indigo-600"></i>Version History
+                                </h3>
+                                <button onclick="document.getElementById('version-history-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                            <div id="version-list" class="space-y-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Find and Replace Modal -->
+                    <div id="find-replace-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold flex items-center">
+                                    <i class="fas fa-search mr-2 text-indigo-600"></i>Find & Replace
+                                </h3>
+                                <button onclick="document.getElementById('find-replace-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Find:</label>
+                                    <input type="text" id="find-input" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500" placeholder="Enter text to find">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-1">Replace with:</label>
+                                    <input type="text" id="replace-input" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 focus:ring-2 focus:ring-indigo-500" placeholder="Enter replacement text">
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button onclick="findText()" class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                                        <i class="fas fa-search mr-2"></i>Find
+                                    </button>
+                                    <button onclick="replaceText()" class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                                        <i class="fas fa-exchange-alt mr-2"></i>Replace All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Modal -->
+                    <div id="analytics-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold flex items-center">
+                                    <i class="fas fa-chart-bar mr-2 text-indigo-600"></i>Note Analytics
+                                </h3>
+                                <button onclick="document.getElementById('analytics-modal').classList.add('hidden')" class="text-gray-500 hover:text-gray-700">
+                                    <i class="fas fa-times text-xl"></i>
+                                </button>
+                            </div>
+                            <div id="analytics-content"></div>
+                            <div class="mt-4 flex justify-end">
+                                <button onclick="document.getElementById('analytics-modal').classList.add('hidden')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
+
+
 
             <!-- Image Tools Tab -->
             <div id="image-tools-tab" class="tab-panel">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <!-- Image Tools Sidebar -->
                     <div class="lg:col-span-1">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                             <h2 class="text-xl font-semibold mb-4">Image Tools</h2>
@@ -274,7 +442,7 @@
                                 </button>
                                 <button id="watermark-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
                                     <i class="fas fa-tint mr-2"></i>Watermark
-                                </button>
+                          </button>
                                 <button id="merge-tool" class="image-tool-btn w-full text-left px-4 py-3 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors">
                                     <i class="fas fa-object-group mr-2"></i>Image Merger
                                 </button>
@@ -288,262 +456,265 @@
                                     <i class="fas fa-layer-group mr-2"></i>Batch Process
                                 </button>
                             </div>
-                            
-                            <!-- Image Upload -->
-                            <div class="mt-6">
-                                <label for="image-upload" class="block w-full cursor-pointer">
-                                    <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
-                                        <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                                        <p id="upload-prompt" class="text-sm text-gray-600 dark:text-gray-400">
-                                            Select an Image
-                                        </p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
-                                    </div>
-                                </label>
-                                <input type="file" id="image-upload" class="hidden" accept="image/*" multiple>
-                            </div>
-                            
-                            <!-- Recent Files -->
-                            <div class="mt-6">
-                                <h3 class="text-sm font-medium mb-2">Recent Files</h3>
-                                <div id="recent-files" class="recent-files space-y-2">
-                                    <!-- Recent files will be added here -->
+                  <div class="mt-6">
+                            <label for="image-upload" class="block w-full cursor-pointer">
+                                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors">
+                                    <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                                    <p id="upload-prompt" class="text-sm text-gray-600 dark:text-gray-400">Select an Image</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">or drag and drop</p>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Image Preview and Controls -->
-                    <div class="lg:col-span-3">
-                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                            <div class="flex justify-between items-center mb-4">
-                                <h2 class="text-xl font-semibold">Preview</h2>
-                                
-                                <div class="flex space-x-2 mt-4">
-                                    <button id="clear-screen" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                                        Clear Screen
-                                    </button>
-                                    <button id="reset-image" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors hidden">
-                                        Reset
-                                    </button>
-                                </div>                        
-
-                                <div class="flex space-x-2">
-                                    <button id="compare-toggle" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
-                                        <i class="fas fa-columns mr-1"></i>Compare
-                                    </button>
-                                    <button id="reset-image" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors hidden">
-                                        <i class="fas fa-undo mr-1"></i>Reset
-                                    </button>
-                                    <button id="zoom-in" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
-                                        <i class="fas fa-search-plus"></i>
-                                    </button>
-                                    <button id="zoom-out" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
-                                        <i class="fas fa-search-minus"></i>
-                                    </button>
-                                    <button id="zoom-fit" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
-                                        <i class="fas fa-expand"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="image-preview-container" class="min-h-[300px] flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden relative">
-                                <div class="text-center text-gray-500 dark:text-gray-400">
-                                    <i class="fas fa-image text-4xl mb-2"></i>
-                                    <p>No image selected</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Tool Controls -->
-                            <div id="tool-controls" class="mt-6 space-y-4">
-                                <!-- All image tool controls remain the same -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- QR Generator Tab -->
-            <div id="qr-generator-tab" class="tab-panel hidden">
-                <div class="h-full flex gap-6">
-                    <div class="w-1/3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-                        <h1 class="text-2xl font-bold mb-4">QR Code Generator</h1>
-                        <div class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Text or URL</label>
-                                <textarea
-                                    id="qr-text-input"
-                                    class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700"
-                                    rows="4"
-                                    placeholder="Enter text here"
-                                ></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Size</label>
-                                <input 
-                                    type="range"
-                                    id="qr-size-slider"
-                                    min="128" max="512" step="64"
-                                    value="256"
-                                    class="w-full"
-                                />
-                                <p class="text-center text-xs" id="qr-size-value">256px</p>
-                            </div>
-                            <div class="flex gap-4">
-                                <div class="flex-1">
-                                    <label class="block text-sm font-medium mb-1">Dark Color</label>
-                                    <input type="color" id="qr-dark-color" value="#000000" class="w-full p-1 h-10 border-none rounded" />
-                                </div>
-                                <div class="flex-1">
-                                    <label class="block text-sm font-medium mb-1">Light Color</label>
-                                    <input type="color" id="qr-light-color" value="#ffffff" class="w-full p-1 h-10 border-none rounded" />
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button id="download-qr-png" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Download PNG</button>
-                                <button id="download-qr-svg" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Download SVG</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center justify-center" id="qr-preview">
-                        <div class="text-center text-gray-400">
-                            <i class="fas fa-qrcode text-8xl mb-4"></i>
-                            <p>Your QR Code will appear here.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Settings Tab -->
-            <div id="settings-tab" class="tab-panel hidden">
-                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                    <h2 class="text-xl font-semibold mb-6">Settings</h2>
-                    <div class="space-y-6">
-                        <div>
-                            <h3 class="text-lg font-medium mb-3">Appearance</h3>
-                            <div class="space-y-3">
-                                <label class="flex items-center justify-between">
-                                    <span>Dark Mode</span>
-                                    <div class="relative">
-                                        <input type="checkbox" id="dark-mode-toggle" class="sr-only">
-                                        <div class="w-10 h-6 bg-gray-300 dark:bg-indigo-600 rounded-full shadow-inner"></div>
-                                        <div class="dot absolute w-4 h-4 bg-white rounded-full shadow left-1 top-1 transition"></div>
-                                    </div>
-                                </label>
-                            </div>
+                            </label>
+                            <input type="file" id="image-upload" class="hidden" accept="image/*" multiple>
                         </div>
                         
-                        <div>
-                            <h3 class="text-lg font-medium mb-3">Storage</h3>
-                            <div class="space-y-3">
-                                <div class="flex items-center justify-between">
-                                    <span>Storage Used</span>
-                                    <span id="storage-used" class="text-sm">0 KB</span>
-                                </div>
-                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div id="storage-bar" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
-                                </div>
-                                <button id="clear-storage" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
-                                    <i class="fas fa-trash mr-2"></i>Clear All Local Data
+                        <div class="mt-6">
+                            <h3 class="text-sm font-medium mb-2">Recent Files</h3>
+                            <div id="recent-files" class="recent-files space-y-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-semibold">Preview</h2>
+                            
+                            <div class="flex space-x-2">
+                                <button id="clear-screen" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                                    Clear Screen
+                                </button>
+                                <button id="reset-image" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors hidden">
+                                    Reset
+                                </button>
+                                <button id="zoom-in" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                    <i class="fas fa-search-plus"></i>
+                                </button>
+                                <button id="zoom-out" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                    <i class="fas fa-search-minus"></i>
+                                </button>
+                                <button id="zoom-fit" class="px-3 py-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors">
+                                    <i class="fas fa-expand"></i>
                                 </button>
                             </div>
                         </div>
-                        
-                        <div>
-                            <h3 class="text-lg font-medium mb-3">About</h3>
-                            <div class="text-sm text-gray-600 dark:text-gray-400">
-                                <p>Multi-Tool Web App v2.0 Enhanced</p>
-                                <p>A comprehensive tool for text editing and image manipulation</p>
-                                <p class="mt-2">© 2023 Multi-Tool Web App. All rights reserved.</p>
+                        <div id="image-preview-container" class="min-h-[300px] flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden relative">
+                            <div class="text-center text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-image text-4xl mb-2"></i>
+                                <p>No image selected</p>
                             </div>
                         </div>
+                        
+                        <div id="tool-controls" class="mt-6 space-y-4"></div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
 
-    <!-- Help Modal -->
-    <div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto animate-bounce-in">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-semibold">Keyboard Shortcuts</h3>
-                <button id="close-help" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                    <i class="fas fa-times"></i>
-                </button>
+        <!-- QR Generator Tab -->
+        <div id="qr-generator-tab" class="tab-panel hidden">
+            <div class="h-full flex gap-6">
+                <div class="w-1/3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                    <h1 class="text-2xl font-bold mb-4">QR Code Generator</h1>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Text or URL</label>
+                            <textarea id="qr-text-input" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-100 dark:bg-gray-700" rows="4" placeholder="Enter text here"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Size</label>
+                            <input type="range" id="qr-size-slider" min="128" max="512" step="64" value="256" class="w-full"/>
+                            <p class="text-center text-xs" id="qr-size-value">256px</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium mb-1">Dark Color</label>
+                                <input type="color" id="qr-dark-color" value="#000000" class="w-full p-1 h-10 border-none rounded" />
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium mb-1">Light Color</label>
+                                <input type="color" id="qr-light-color" value="#ffffff" class="w-full p-1 h-10 border-none rounded" />
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="download-qr-png" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Download PNG</button>
+                            <button id="download-qr-svg" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Download SVG</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 flex items-center justify-center" id="qr-preview">
+                    <div class="text-center text-gray-400">
+                        <i class="fas fa-qrcode text-8xl mb-4"></i>
+                        <p>Your QR Code will appear here.</p>
+                    </div>
+                </div>
             </div>
-            <div class="space-y-4">
-                <div>
-                    <h4 class="font-medium mb-2">General</h4>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex justify-between">
-                            <span>Show Help</span>
-                            <kbd>?</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Toggle Dark Mode</span>
-                            <kbd>Ctrl+D</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Save Current Work</span>
-                            <kbd>Ctrl+S</kbd>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <h4 class="font-medium mb-2">Notepad</h4>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex justify-between">
-                            <span>Bold</span>
-                            <kbd>Ctrl+B</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Italic</span>
-                            <kbd>Ctrl+I</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Underline</span>
-                            <kbd>Ctrl+U</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Undo</span>
-                            <kbd>Ctrl+Z</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Redo</span>
-                            <kbd>Ctrl+Y</kbd>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-panel hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold mb-6">Settings</h2>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">Appearance</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center justify-between">
+                                <span>Dark Mode</span>
+                                <div class="relative">
+                                    <input type="checkbox" id="dark-mode-toggle" class="sr-only">
+                                    <div class="w-10 h-6 bg-gray-300 dark:bg-indigo-600 rounded-full shadow-inner"></div>
+                                    <div class="dot absolute w-4 h-4 bg-white rounded-full shadow left-1 top-1 transition"></div>
+                                </div>
+                            </label>
                         </div>
                     </div>
-                </div>
-                <div>
-                    <h4 class="font-medium mb-2">Image Tools</h4>
-                    <div class="space-y-1 text-sm">
-                        <div class="flex justify-between">
-                            <span>Zoom In</span>
-                            <kbd>Ctrl+</kbd>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">Storage</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span>Storage Used</span>
+                                <span id="storage-used" class="text-sm">0 KB</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div id="storage-bar" class="bg-indigo-600 h-2 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <button id="clear-storage" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                                <i class="fas fa-trash mr-2"></i>Clear All Local Data
+                            </button>
                         </div>
-                        <div class="flex justify-between">
-                            <span>Zoom Out</span>
-                            <kbd>Ctrl-</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Reset Zoom</span>
-                            <kbd>Ctrl+0</kbd>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Reset Image</span>
-                            <kbd>Ctrl+R</kbd>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-medium mb-3">About</h3>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                            <p>Multi-Tool Web App v2.0 Enhanced</p>
+                            <p>A comprehensive tool for text editing and image manipulation</p>
+                            <p class="mt-2">© 2023 Multi-Tool Web App. All rights reserved.</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</main>
 
-    <!-- Notification Container -->
-    <div id="notification-container" class="fixed bottom-4 right-4 z-50"></div>
-    
+<!-- Help Modal -->
+<div id="help-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto animate-bounce-in">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-semibold">Keyboard Shortcuts</h3>
+            <button id="close-help" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">General</h4>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>Show Help</span>
+                        <kbd>?</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Toggle Dark Mode</span>
+                        <kbd>Ctrl+D</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Save Current Work</span>
+                        <kbd>Ctrl+S</kbd>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Notepad</h4>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>Bold</span>
+                        <kbd>Ctrl+B</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Italic</span>
+                        <kbd>Ctrl+I</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Underline</span>
+                        <kbd>Ctrl+U</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Undo</span>
+                        <kbd>Ctrl+Z</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Redo</span>
+                        <kbd>Ctrl+Y</kbd>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Image Tools</h4>
+                <div class="space-y-1 text-sm">
+                    <div class="flex justify-between">
+                        <span>Zoom In</span>
+                        <kbd>Ctrl+</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Zoom Out</span>
+                        <kbd>Ctrl-</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Reset Zoom</span>
+                        <kbd>Ctrl+0</kbd>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Reset Image</span>
+                        <kbd>Ctrl+R</kbd>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-<script src="js/app.js"></script>
-       <script src="js/qr.js"></script>
+<!-- Notification Container -->
+<div id="notification-container" class="fixed bottom-4 right-4 z-50"></div>
+
+<!-- LOCAL JS LIBRARIES -->
+<script src="libs/qrcode.min.js"></script>
+<script src="libs/cropper.min.js"></script>
+<script src="libs/jspdf.umd.min.js"></script>
+
+<!-- UTILITIES -->
+<script src="js/utils/helpers.js"></script>
+<script src="js/utils/storage.js"></script>
+<script src="js/utils/notifications.js"></script>
+
+<!-- CORE MODULES -->
+<script src="js/core/theme.js"></script>
+<script src="js/core/tabs.js"></script>
+<script src="js/core/shortcuts.js"></script>
+
+<!-- NOTEPAD MODULES -->
+<script src="js/notepad/editor.js"></script>
+<script src="js/notepad/notes.js"></script>
+
+<!-- IMAGE TOOL MODULES -->
+<script src="js/image-tools/main.js"></script>
+<script src="js/image-tools/thumbnail.js"></script>
+<script src="js/image-tools/resize.js"></script>
+<script src="js/image-tools/compress.js"></script>
+<script src="js/image-tools/convert.js"></script>
+<script src="js/image-tools/crop.js"></script>
+<script src="js/image-tools/watermark.js"></script>
+<script src="js/image-tools/filter.js"></script>
+<script src="js/image-tools/metadata.js"></script>
+<script src="js/image-tools/merge.js"></script>
+<script src="js/image-tools/batch.js"></script>
+
+<!-- QR MODULE -->
+<script src="js/qr/qr-generator.js"></script>
+
+<!-- INITIALIZE APP (MUST BE LAST) -->
+<script src="js/core/init.js"></script>
 </body>
 </html>
