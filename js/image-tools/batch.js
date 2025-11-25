@@ -14,6 +14,7 @@ function showBatchControls(container) {
                     <option value="compress">Compress</option>
                     <option value="convert">Convert Format</option>
                     <option value="watermark">Add Watermark</option>
+                    <option value="pdf">Convert to PDF</option>
                 </select>
             </div>
             <div id="batch-options" class="mb-4"></div>
@@ -66,15 +67,25 @@ function handleBatchImageSelection(e) {
                     size: file.size
                 });
                 
-                const thumb = document.createElement('img');
-                thumb.src = event.target.result;
-                thumb.className = 'w-16 h-16 object-cover rounded m-1';
-                previewContainer.appendChild(thumb);
+                const thumbContainer = document.createElement('div');
+                thumbContainer.className = 'inline-block relative m-1';
+                thumbContainer.innerHTML = `
+                    <img src="${event.target.result}" class="w-16 h-16 object-cover rounded border border-gray-300 dark:border-gray-600">
+                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs px-1 text-center">
+                        ${file.name.split('.').pop().toUpperCase()}
+                    </div>
+                `;
+                previewContainer.appendChild(thumbContainer);
                 
                 loadedCount++;
                 if (loadedCount === files.length) {
                     document.getElementById('process-batch').disabled = false;
                     updateBatchOptions();
+                    
+                    const infoText = document.createElement('p');
+                    infoText.className = 'text-sm text-gray-600 dark:text-gray-400 mt-2';
+                    infoText.textContent = `${files.length} image(s) selected`;
+                    previewContainer.appendChild(infoText);
                 }
             };
             img.src = event.target.result;
@@ -164,16 +175,70 @@ function updateBatchOptions() {
                 </div>
             `;
             break;
+            
+        case 'pdf':
+            optionsContainer.innerHTML = `
+                <div class="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg mb-3">
+                    <p class="text-sm text-blue-800 dark:text-blue-200">
+                        <strong>Convert Images to PDF</strong><br>
+                        Supports: JPEG, JPG, PNG, BMP, WebP
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">PDF Creation Mode</label>
+                    <select id="batch-pdf-mode" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                        <option value="separate">Separate PDFs (One PDF per image)</option>
+                        <option value="combined">Combined PDF (All images in one PDF)</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Page Orientation</label>
+                    <select id="batch-pdf-orientation" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                        <option value="auto">Auto (Based on image)</option>
+                        <option value="portrait">Portrait</option>
+                        <option value="landscape">Landscape</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="block text-sm font-medium mb-1">Page Size</label>
+                    <select id="batch-pdf-size" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-800">
+                        <option value="a4">A4</option>
+                        <option value="letter">Letter</option>
+                        <option value="legal">Legal</option>
+                        <option value="fit">Fit to Image</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Image Quality</label>
+                    <input type="range" id="batch-pdf-quality" min="1" max="100" value="85" class="w-full">
+                    <div class="flex justify-between text-xs text-gray-500">
+                        <span>Low Quality</span>
+                        <span id="batch-pdf-quality-value">85</span>
+                        <span>High Quality</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('batch-pdf-quality').addEventListener('input', function() {
+                document.getElementById('batch-pdf-quality-value').textContent = this.value;
+            });
+            break;
     }
 }
 
-function processBatchImages() {
+async function processBatchImages() {
     if (batchImages.length === 0) {
         showNotification('Please select images to process', 'error');
         return;
     }
     
     const operation = document.getElementById('batch-operation').value;
+    
+    // Special handling for PDF conversion
+    if (operation === 'pdf') {
+        await processBatchToPdf();
+        return;
+    }
+    
     const progressContainer = document.getElementById('batch-progress');
     const progressBar = document.getElementById('batch-progress-bar');
     const progressText = document.getElementById('batch-progress-text');
@@ -214,6 +279,228 @@ function processBatchImages() {
                 }, 500);
             }
         }, index * 100);
+    });
+}
+
+async function processBatchToPdf() {
+    if (batchImages.length === 0) {
+        showNotification('Please select images to convert', 'error');
+        return;
+    }
+    
+    // Load jsPDF library if not already loaded
+    if (typeof window.jspdf === 'undefined') {
+        await loadJsPdfLibrary();
+    }
+    
+    const mode = document.getElementById('batch-pdf-mode').value;
+    const orientation = document.getElementById('batch-pdf-orientation').value;
+    const pageSize = document.getElementById('batch-pdf-size').value;
+    const quality = parseInt(document.getElementById('batch-pdf-quality').value) / 100;
+    
+    const progressContainer = document.getElementById('batch-progress');
+    const progressBar = document.getElementById('batch-progress-bar');
+    const progressText = document.getElementById('batch-progress-text');
+    
+    progressContainer.classList.remove('hidden');
+    document.getElementById('process-batch').disabled = true;
+    
+    if (mode === 'separate') {
+        // Create separate PDF for each image
+        for (let i = 0; i < batchImages.length; i++) {
+            const imageData = batchImages[i];
+            await createSingleImagePdf(imageData, orientation, pageSize, quality);
+            
+            const percentage = ((i + 1) / batchImages.length) * 100;
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${i + 1}/${batchImages.length}`;
+        }
+        
+        showNotification(`Successfully created ${batchImages.length} PDF(s)`, 'success');
+    } else {
+        // Create one combined PDF with all images
+        await createCombinedPdf(batchImages, orientation, pageSize, quality, progressBar, progressText);
+        showNotification('Successfully created combined PDF', 'success');
+    }
+    
+    setTimeout(() => {
+        progressContainer.classList.add('hidden');
+        document.getElementById('process-batch').disabled = false;
+    }, 500);
+}
+
+async function createSingleImagePdf(imageData, orientation, pageSize, quality) {
+    return new Promise((resolve) => {
+        const { jsPDF } = window.jspdf;
+        const img = new Image();
+        
+        img.onload = function() {
+            // Determine orientation
+            let pdfOrientation = orientation;
+            if (orientation === 'auto') {
+                pdfOrientation = img.width > img.height ? 'landscape' : 'portrait';
+            }
+            
+            // Create PDF
+            let pdf;
+            if (pageSize === 'fit') {
+                // Fit to image size (convert px to mm, assuming 96 DPI)
+                const widthMm = (img.width * 25.4) / 96;
+                const heightMm = (img.height * 25.4) / 96;
+                pdf = new jsPDF({
+                    orientation: pdfOrientation,
+                    unit: 'mm',
+                    format: [widthMm, heightMm]
+                });
+            } else {
+                pdf = new jsPDF({
+                    orientation: pdfOrientation,
+                    unit: 'mm',
+                    format: pageSize
+                });
+            }
+            
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            // Calculate image dimensions to fit page
+            const imgRatio = img.width / img.height;
+            const pageRatio = pageWidth / pageHeight;
+            
+            let imgWidth, imgHeight, x, y;
+            
+            if (imgRatio > pageRatio) {
+                // Image is wider than page ratio
+                imgWidth = pageWidth;
+                imgHeight = pageWidth / imgRatio;
+                x = 0;
+                y = (pageHeight - imgHeight) / 2;
+            } else {
+                // Image is taller than page ratio
+                imgHeight = pageHeight;
+                imgWidth = pageHeight * imgRatio;
+                x = (pageWidth - imgWidth) / 2;
+                y = 0;
+            }
+            
+            // Add image to PDF
+            pdf.addImage(imageData.url, 'JPEG', x, y, imgWidth, imgHeight, undefined, 'FAST');
+            
+            // Download PDF
+            const nameWithoutExt = imageData.name.replace(/\.[^/.]+$/, '');
+            pdf.save(`${nameWithoutExt}.pdf`);
+            
+            resolve();
+        };
+        
+        img.src = imageData.url;
+    });
+}
+
+async function createCombinedPdf(images, orientation, pageSize, quality, progressBar, progressText) {
+    return new Promise((resolve) => {
+        const { jsPDF } = window.jspdf;
+        let pdf = null;
+        let processedCount = 0;
+        
+        const processNextImage = (index) => {
+            if (index >= images.length) {
+                // All images processed, save PDF
+                pdf.save('combined_images.pdf');
+                resolve();
+                return;
+            }
+            
+            const imageData = images[index];
+            const img = new Image();
+            
+            img.onload = function() {
+                // Determine orientation for this page
+                let pdfOrientation = orientation;
+                if (orientation === 'auto') {
+                    pdfOrientation = img.width > img.height ? 'landscape' : 'portrait';
+                }
+                
+                // Create PDF on first image
+                if (pdf === null) {
+                    if (pageSize === 'fit') {
+                        const widthMm = (img.width * 25.4) / 96;
+                        const heightMm = (img.height * 25.4) / 96;
+                        pdf = new jsPDF({
+                            orientation: pdfOrientation,
+                            unit: 'mm',
+                            format: [widthMm, heightMm]
+                        });
+                    } else {
+                        pdf = new jsPDF({
+                            orientation: pdfOrientation,
+                            unit: 'mm',
+                            format: pageSize
+                        });
+                    }
+                } else {
+                    // Add new page for subsequent images
+                    if (pageSize === 'fit') {
+                        const widthMm = (img.width * 25.4) / 96;
+                        const heightMm = (img.height * 25.4) / 96;
+                        pdf.addPage([widthMm, heightMm], pdfOrientation);
+                    } else {
+                        pdf.addPage(pageSize, pdfOrientation);
+                    }
+                }
+                
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                
+                // Calculate image dimensions to fit page
+                const imgRatio = img.width / img.height;
+                const pageRatio = pageWidth / pageHeight;
+                
+                let imgWidth, imgHeight, x, y;
+                
+                if (imgRatio > pageRatio) {
+                    imgWidth = pageWidth;
+                    imgHeight = pageWidth / imgRatio;
+                    x = 0;
+                    y = (pageHeight - imgHeight) / 2;
+                } else {
+                    imgHeight = pageHeight;
+                    imgWidth = pageHeight * imgRatio;
+                    x = (pageWidth - imgWidth) / 2;
+                    y = 0;
+                }
+                
+                // Add image to PDF
+                pdf.addImage(imageData.url, 'JPEG', x, y, imgWidth, imgHeight, undefined, 'FAST');
+                
+                processedCount++;
+                const percentage = (processedCount / images.length) * 100;
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${processedCount}/${images.length}`;
+                
+                // Process next image
+                processNextImage(index + 1);
+            };
+            
+            img.src = imageData.url;
+        };
+        
+        processNextImage(0);
+    });
+}
+
+async function loadJsPdfLibrary() {
+    return new Promise((resolve, reject) => {
+        if (typeof window.jspdf !== 'undefined') {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
     });
 }
 
@@ -344,7 +631,8 @@ function processBatchWatermark(imageData, index) {
         
         canvas.toBlob(function(blob) {
             downloadBlob(blob, `watermarked_${imageData.name}`);
-                }, 'image/jpeg', 0.9);
-             };
-                   img.src = imageData.url;
-            }
+        }, 'image/jpeg', 0.9);
+    };
+    
+    img.src = imageData.url;
+}
