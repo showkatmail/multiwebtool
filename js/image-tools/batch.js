@@ -64,28 +64,15 @@ function handleBatchImageSelection(e) {
                     height: img.height,
                     name: file.name,
                     type: file.type,
-                    size: file.size
+                    size: file.size,
+                    id: Date.now() + Math.random() // Unique ID for tracking
                 });
-                
-                const thumbContainer = document.createElement('div');
-                thumbContainer.className = 'inline-block relative m-1';
-                thumbContainer.innerHTML = `
-                    <img src="${event.target.result}" class="w-16 h-16 object-cover rounded border border-gray-300 dark:border-gray-600">
-                    <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs px-1 text-center">
-                        ${file.name.split('.').pop().toUpperCase()}
-                    </div>
-                `;
-                previewContainer.appendChild(thumbContainer);
                 
                 loadedCount++;
                 if (loadedCount === files.length) {
+                    renderBatchPreview();
                     document.getElementById('process-batch').disabled = false;
                     updateBatchOptions();
-                    
-                    const infoText = document.createElement('p');
-                    infoText.className = 'text-sm text-gray-600 dark:text-gray-400 mt-2';
-                    infoText.textContent = `${files.length} image(s) selected`;
-                    previewContainer.appendChild(infoText);
                 }
             };
             img.src = event.target.result;
@@ -93,6 +80,129 @@ function handleBatchImageSelection(e) {
         
         reader.readAsDataURL(file);
     }
+}
+
+function renderBatchPreview() {
+    const previewContainer = document.getElementById('batch-preview');
+    previewContainer.innerHTML = '';
+    
+    // Check if PDF mode is selected
+    const operation = document.getElementById('batch-operation').value;
+    const isPdfMode = operation === 'pdf';
+    
+    if (isPdfMode) {
+        // Add reorder instructions
+        const instructionDiv = document.createElement('div');
+        instructionDiv.className = 'bg-blue-50 dark:bg-blue-900/20 p-2 rounded-lg mb-3';
+        instructionDiv.innerHTML = `
+            <p class="text-xs text-blue-800 dark:text-blue-200 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>Drag and drop to reorder images for PDF</strong>
+            </p>
+        `;
+        previewContainer.appendChild(instructionDiv);
+    }
+    
+    // Create container for thumbnails
+    const thumbsContainer = document.createElement('div');
+    thumbsContainer.id = 'batch-thumbs-container';
+    thumbsContainer.className = 'flex flex-wrap gap-2';
+    
+    batchImages.forEach((imageData, index) => {
+        const thumbContainer = document.createElement('div');
+        thumbContainer.className = `relative inline-block cursor-move ${isPdfMode ? 'draggable-thumb' : ''}`;
+        thumbContainer.setAttribute('data-index', index);
+        thumbContainer.draggable = isPdfMode;
+        
+        thumbContainer.innerHTML = `
+            <div class="relative group">
+                <img src="${imageData.url}" class="w-20 h-20 object-cover rounded border-2 border-gray-300 dark:border-gray-600 transition-all">
+                <div class="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center m-1">
+                    ${index + 1}
+                </div>
+                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs px-1 text-center truncate">
+                    ${imageData.name.split('.').pop().toUpperCase()}
+                </div>
+                ${isPdfMode ? '<div class="absolute inset-0 bg-indigo-500 bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center"><i class="fas fa-arrows-alt text-white opacity-0 group-hover:opacity-100 text-2xl"></i></div>' : ''}
+            </div>
+        `;
+        
+        if (isPdfMode) {
+            // Add drag and drop event listeners
+            thumbContainer.addEventListener('dragstart', handleDragStart);
+            thumbContainer.addEventListener('dragover', handleDragOver);
+            thumbContainer.addEventListener('drop', handleDrop);
+            thumbContainer.addEventListener('dragend', handleDragEnd);
+        }
+        
+        thumbsContainer.appendChild(thumbContainer);
+    });
+    
+    previewContainer.appendChild(thumbsContainer);
+    
+    // Add info text
+    const infoText = document.createElement('p');
+    infoText.className = 'text-sm text-gray-600 dark:text-gray-400 mt-3';
+    infoText.textContent = `${batchImages.length} image(s) selected`;
+    previewContainer.appendChild(infoText);
+}
+
+// Drag and Drop handlers
+let draggedElement = null;
+let draggedIndex = null;
+
+function handleDragStart(e) {
+    draggedElement = e.currentTarget;
+    draggedIndex = parseInt(draggedElement.getAttribute('data-index'));
+    draggedElement.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const targetElement = e.currentTarget;
+    if (targetElement !== draggedElement && targetElement.classList.contains('draggable-thumb')) {
+        targetElement.style.borderColor = '#4F46E5';
+        targetElement.style.borderWidth = '3px';
+    }
+    
+    return false;
+}
+
+function handleDrop(e) {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const targetElement = e.currentTarget;
+    const targetIndex = parseInt(targetElement.getAttribute('data-index'));
+    
+    if (draggedIndex !== targetIndex) {
+        // Reorder the array
+        const draggedItem = batchImages[draggedIndex];
+        batchImages.splice(draggedIndex, 1);
+        batchImages.splice(targetIndex, 0, draggedItem);
+        
+        // Re-render the preview
+        renderBatchPreview();
+        
+        // Show notification
+        showNotification(`Image moved from position ${draggedIndex + 1} to ${targetIndex + 1}`, 'success');
+    }
+    
+    return false;
+}
+
+function handleDragEnd(e) {
+    e.currentTarget.style.opacity = '1';
+    
+    // Remove border highlights from all thumbnails
+    const allThumbs = document.querySelectorAll('.draggable-thumb');
+    allThumbs.forEach(thumb => {
+        thumb.style.borderColor = '';
+        thumb.style.borderWidth = '';
+    });
 }
 
 function updateBatchOptions() {
@@ -221,7 +331,17 @@ function updateBatchOptions() {
             document.getElementById('batch-pdf-quality').addEventListener('input', function() {
                 document.getElementById('batch-pdf-quality-value').textContent = this.value;
             });
+            
+            // Re-render preview to enable drag and drop
+            if (batchImages.length > 0) {
+                renderBatchPreview();
+            }
             break;
+    }
+    
+    // Re-render preview for non-PDF operations (to disable drag and drop)
+    if (operation !== 'pdf' && batchImages.length > 0) {
+        renderBatchPreview();
     }
 }
 
@@ -318,9 +438,9 @@ async function processBatchToPdf() {
         
         showNotification(`Successfully created ${batchImages.length} PDF(s)`, 'success');
     } else {
-        // Create one combined PDF with all images
+        // Create one combined PDF with all images in current order
         await createCombinedPdf(batchImages, orientation, pageSize, quality, progressBar, progressText);
-        showNotification('Successfully created combined PDF', 'success');
+        showNotification('Successfully created combined PDF with images in selected order', 'success');
     }
     
     setTimeout(() => {
