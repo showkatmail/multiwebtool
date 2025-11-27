@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - Image & PDF Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+        .offline-container {
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        p {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <h1>📡 You're Offline</h1>
+        <p>Please check your internet connection and try again.</p>
+        <button onclick="window.location.reload()" style="margin-top: 2rem; padding: 0.75rem 1.5rem; font-size: 1rem; background: white; color: #667eea; border: none; border-radius: 0.5rem; cursor: pointer;">
+            Try Again
+        </button>
+    </div>
+</body>
+</html>
