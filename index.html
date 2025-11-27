@@ -65,6 +65,62 @@
                         'spin-slow': 'spin 3s linear infinite',
                         'pulse-slow': 'pulse 3s infinite',
                         'fade-in': 'fadeIn 0.5s ease-in-out',
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Professional Multi-Tool Web App for Image Processing, PDF Conversion, QR Generation, and Note Taking">
+    <meta name="theme-color" content="#4F46E5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Multi-Tool">
+    
+    <title>Multi-Tool Web App</title>
+    
+    <!-- PWA Manifest - GitHub Pages compatible -->
+    <link rel="manifest" href="./manifest.json">
+    
+    <!-- Favicons - GitHub Pages compatible -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./icons/icon-16x16.png">
+    
+    <!-- Apple Touch Icons - GitHub Pages compatible -->
+    <link rel="apple-touch-icon" href="./icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="./icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="./icons/icon-167x167.png">
+    
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Cropper.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- QRCode Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'fade-in': 'fadeIn 0.5s ease-in-out',
                         'slide-up': 'slideUp 0.3s ease-out',
                         'bounce-in': 'bounceIn 0.6s ease-out'
                     },
@@ -848,5 +904,115 @@
 
 <!-- INITIALIZE APP (MUST BE LAST) -->
 <script src="js/core/init.js"></script>
+
+    <script>
+    // Get the base path for GitHub Pages
+    const getBasePath = () => {
+        const path = window.location.pathname;
+        const match = path.match(/^\/[^\/]+/);
+        return match ? match[0] : '';
+    };
+
+    // Register Service Worker with correct path
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            const basePath = getBasePath();
+            const swPath = `${basePath}/service-worker.js`;
+            
+            navigator.serviceWorker.register(swPath)
+                .then(registration => {
+                    console.log('✅ Service Worker registered successfully:', registration.scope);
+                    
+                    // Check for updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New service worker available
+                                if (confirm('New version available! Reload to update?')) {
+                                    newWorker.postMessage({ action: 'skipWaiting' });
+                                    window.location.reload();
+                                }
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.log('❌ Service Worker registration failed:', error);
+                    console.log('Attempted path:', swPath);
+                });
+        });
+        
+        // Handle controller change
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('🔄 Service Worker controller changed');
+        });
+    }
+    
+    // PWA Install Prompt
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallPromotion();
+    });
+    
+    function showInstallPromotion() {
+        if (document.getElementById('install-button')) return;
+        
+        const installButton = document.createElement('button');
+        installButton.innerHTML = '<i class="fas fa-download mr-2"></i>Install App';
+        installButton.className = 'fixed bottom-4 left-4 bg-indigo-600 text-white px-4 py-3 rounded-lg shadow-lg hover:bg-indigo-700 transition-colors z-50 flex items-center';
+        installButton.id = 'install-button';
+        
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to install prompt: ${outcome}`);
+                
+                if (outcome === 'accepted') {
+                    console.log('✅ User accepted the install prompt');
+                } else {
+                    console.log('❌ User dismissed the install prompt');
+                }
+                
+                deferredPrompt = null;
+                installButton.remove();
+            }
+        });
+        
+        document.body.appendChild(installButton);
+        
+        setTimeout(() => {
+            if (installButton.parentNode) {
+                installButton.style.opacity = '0';
+                installButton.style.transition = 'opacity 0.5s';
+                setTimeout(() => installButton.remove(), 500);
+            }
+        }, 10000);
+    }
+    
+    window.addEventListener('appinstalled', () => {
+        console.log('✅ PWA was installed successfully');
+        deferredPrompt = null;
+        
+        const installButton = document.getElementById('install-button');
+        if (installButton) {
+            installButton.remove();
+        }
+        
+        if (typeof showNotification === 'function') {
+            showNotification('App installed successfully! 🎉', 'success');
+        }
+    });
+    
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+        console.log('✅ Running as PWA');
+        document.body.classList.add('pwa-mode');
+    }
+</script>
 </body>
 </html>
+
